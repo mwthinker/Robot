@@ -1,0 +1,8 @@
+{
+  "name" : "robot",
+  "version" : "0.1.0",
+  "homepage" : "https://github.com/mwthinker/robot",
+  "description" : "Simple 3D - view of a ABB IRB-140 robot",
+  "license" : "MIT",
+  "dependencies" : [ "cppsdl3", "gtest" ]
+}
