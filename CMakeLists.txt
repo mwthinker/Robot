@@ -15,6 +15,7 @@ set(SOURCES
 	src/main.cpp
 	src/robotwindow.cpp
 	src/robotwindow.h
+	src/graphic.h
 	
 	CMakePresets.json
 	vcpkg.json
@@ -26,11 +27,7 @@ add_executable(Robot
 
 set_property(GLOBAL PROPERTY USE_FOLDERS On)
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Robot)
-source_group(TREE
-	${CMAKE_CURRENT_SOURCE_DIR}
-	FILES
-		${SOURCES}
-)
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(Robot_Test)
 
