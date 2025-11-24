@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 4.2)
 project(Robot
 	DESCRIPTION
 		"Description"
@@ -12,13 +12,18 @@ project(Robot
 file(COPY data/. DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 set(SOURCES
+	src/graphic.h
 	src/main.cpp
+	src/robotgraphics.h
+	src/robotgraphics.cpp
 	src/robotwindow.cpp
 	src/robotwindow.h
-	src/graphic.h
+	src/sphereviewvar.h
+	src/sphereviewvar.cpp
 	
 	CMakePresets.json
 	vcpkg.json
+	cppsdl3.natvis
 )
 
 add_executable(Robot
