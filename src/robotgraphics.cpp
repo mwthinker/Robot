@@ -9,27 +9,45 @@
 
 namespace robot {
 
-	glm::mat4 RobotGraphics::getH(const float theta, const int n) const {
+	namespace {
+
+		/// Converts the joint angles for the C-code for the robot to angles
+		/// suited for the DH-representation (and the real robot).
+		std::array<float, 6> convertAngles(const std::array<float, 6>& angles) {
+			// Anles[2] is defined relative to the horizontal plane
+			return {
+				angles[0],
+				angles[1] - Pi / 2,
+				angles[2] + Pi - angles[1],
+				angles[3],
+				(angles[4] + Pi) * (-1),
+				angles[5] - Pi
+			};
+		}
+	}
+
+	RobotGraphics::RobotGraphics() {
+		initDefaultDH();
+	};
+
+	glm::mat4 RobotGraphics::getH(float theta, int n) const {
 		// Using the standard DH-representation.
 		// GLM uses column-major ordering, so we must transpose
-		const float ca = std::cos(dh_.alpha[n]);
-		const float sa = std::sin(dh_.alpha[n]);
-		const float ct = std::cos(theta);
-		const float st = std::sin(theta);
+		float ca = std::cos(dh_.alpha[n]);
+		float sa = std::sin(dh_.alpha[n]);
+		float ct = std::cos(theta);
+		float st = std::sin(theta);
 
-		// Transposed: columns become what were rows in the DH matrix
 		return glm::mat4{
-			ct, st, 0, 0,           // Column 0
-			-st * ca, ct * ca, sa, 0,          // Column 1
-			st * sa, -ct * sa, ca, 0,          // Column 2
-			dh_.a[n] * ct, dh_.a[n] * st, dh_.d[n], 1    // Column 3 (translation)
+			 ct,                       st,        0, 0,
+			-st * ca,             ct * ca,       sa, 0,
+			 st * sa,            -ct * sa,       ca, 0,
+			 dh_.a[n] * ct, dh_.a[n] * st, dh_.d[n], 1
 		};
 	}
 
 	void RobotGraphics::draw(Graphic& graphic, const std::array<float, 6>& angles) {
-		float thetas[6];
-		std::copy(angles.begin(), angles.end(), thetas);
-		convertAngles(thetas);
+		auto thetas = convertAngles(angles);
 
 		glm::mat4 h1 = getH(thetas[0], 0);
 		glm::mat4 h2 = getH(thetas[1], 1);
@@ -59,23 +77,23 @@ namespace robot {
 		graphic.popMatrix();
 
 		graphic.pushMatrix();
-		drawCylinderLink(graphic, glm::vec3{jointPositions_[0]}, glm::vec3{jointPositions_[1]}, 0.05f, 0.05f);
+		drawCylinderLink(graphic, glm::vec3{jointPositions_[0]}, glm::vec3{jointPositions_[1]}, 0.05f, 0.05f, sdl::color::Red);
 		graphic.translate(glm::vec3{0.0f, 0.0f, 0.05f});
 		graphic.addSolidSphere(0.05f * 1.8f, 10, 5, color);
 		graphic.popMatrix();
 
 		graphic.pushMatrix();
-		drawCylinderLink(graphic, glm::vec3{jointPositions_[1]}, glm::vec3{jointPositions_[2]}, 0.05f, 0.03f);
+		drawCylinderLink(graphic, glm::vec3{jointPositions_[1]}, glm::vec3{jointPositions_[2]}, 0.05f, 0.03f, sdl::color::Green);
 		graphic.addSolidSphere(0.05f * 1.4f, 10, 3, color);
 		graphic.popMatrix();
 
 		graphic.pushMatrix();
-		drawCylinderLink(graphic, glm::vec3{jointPositions_[3]}, glm::vec3{jointPositions_[5]}, 0.03f, 0.02f);
+		drawCylinderLink(graphic, glm::vec3{jointPositions_[3]}, glm::vec3{jointPositions_[5]}, 0.03f, 0.02f, sdl::color::Blue);
 		graphic.addSolidSphere(0.03f * 1.4f, 10, 5, color);
 		graphic.popMatrix();
 
 		graphic.pushMatrix();
-		drawCylinderLink(graphic, glm::vec3{jointPositions_[5]}, glm::vec3{jointPositions_[6]}, 0.02f, 0.01f);
+		drawCylinderLink(graphic, glm::vec3{jointPositions_[5]}, glm::vec3{jointPositions_[6]}, 0.02f, 0.01f, sdl::color::html::Chocolate);
 		graphic.addSolidSphere(0.02f * 1.4f, 10, 3, color);
 		graphic.popMatrix();
 
@@ -154,9 +172,10 @@ namespace robot {
 		*/
 	}
 
-	void RobotGraphics::setWorkspace(const float xMin, const float yMin, const float zMin,
-		const float xMax, const float yMax, const float zMax,
+	void RobotGraphics::setWorkspace(float xMin, float yMin, float zMin,
+		float xMax, float yMax, float zMax,
 		const glm::mat4& hBase2rBase) {
+
 		workspacePositions_[0] = glm::vec4(xMin, yMin, zMin, 0);
 		workspacePositions_[1] = glm::vec4(xMax, yMin, zMin, 0);
 		workspacePositions_[2] = glm::vec4(xMax, yMax, zMin, 0);
@@ -196,73 +215,34 @@ namespace robot {
 		dh_.d[5] = 0.065f;
 	}
 
-	void RobotGraphics::convertAngles(float angles[]) const {
-		// Anles[2] is defined relative to the horizontal plane
-		angles[2] = angles[2] + Pi - angles[1];
-
-		angles[1] = angles[1] - Pi / 2;
-		angles[4] = (angles[4] + Pi) * (-1);
-		angles[5] = (angles[5] - Pi);
-	}
-
 	void RobotGraphics::drawLine(Graphic& graphic, const glm::vec3& p1, const glm::vec3& p2) const {
 		graphic.addLine(p1, p2, 3.f, sdl::color::White);
 	}
 	
-	void RobotGraphics::rotateZ(const glm::vec3& p1, const glm::vec3& p2, float matrix[]) const {
+	glm::mat4 RobotGraphics::rotateZ(const glm::vec3& p1, const glm::vec3& p2) const {
 		glm::vec3 ez = glm::normalize(p2 - p1);
 
-		int index = 0;
-		if (std::abs(ez[index]) < std::abs(ez[1])) {
-			index = 1;
-		}
-		if (std::abs(ez[index]) < std::abs(ez[2])) {
-			index = 2;
-		}
+		// Choose a reference vector that's not parallel to ez
+		glm::vec3 up = (std::abs(ez.z) < 0.999f) ? glm::vec3(0, 0, 1) : glm::vec3(1, 0, 0);
 
-		float x, y, z;
-		switch (index) {
-			case 0:
-				y = 0.4f;
-				z = 0.4f;
-				x = (-ez[1] * y - ez[2] * z) / ez[0];
-				break;
-			case 1:
-				x = 0.4f;
-				z = 0.4f;
-				y = (-ez[0] * x - ez[2] * z) / ez[1];
-				break;
-			case 2:
-				x = 0.4f;
-				y = 0.4f;
-				z = (-ez[0] * x - ez[1] * y) / ez[2];
-				break;
-		}
-		glm::vec3 ex = glm::normalize(glm::vec3{x, y, z});
-		//cross([a1 a2 a3],[b1 b2 b3]) => [a2*b3-a3*b2, a3*b1-a1*b3, a1*b2-a2*b1]
-		//glm::vec4 ey(ez[1]*ex[2]-ez[2]*ex[1], ez[2]*ex[0]-ez[0]*ex[2], ez[0]*ex[1]-ez[1]*ex[0]);
+		glm::vec3 ex = glm::normalize(glm::cross(up, ez));
 		glm::vec3 ey = glm::cross(ez, ex);
 
-		matrix[0]  = ex[0]; matrix[1]  = ex[1];  matrix[2]  = ex[2]; matrix[3]  = 0;
-		matrix[4]  = ey[0]; matrix[5]  = ey[1];  matrix[6]  = ey[2]; matrix[7]  = 0;
-		matrix[8]  = ez[0]; matrix[9]  = ez[1];  matrix[10] = ez[2]; matrix[11] = 0;
-		matrix[12] = 0;     matrix[13] = 0;      matrix[14] = 0;     matrix[15] = 1;
+		return glm::mat4{
+			ex[0], ex[1], ex[2], 0,
+			ey[0], ey[1], ey[2], 0,
+			ez[0], ez[1], ez[2], 0,
+			0, 0, 0, 1
+		};
 	}
 
 	
-	void RobotGraphics::drawCylinderLink(Graphic& graphic, const glm::vec3& pos1, const glm::vec3& pos2, float radie1, float radie2) const {
-		float field[16];
-		rotateZ(pos1, pos2, field);
-		glm::vec3 diff = pos2 - pos1;
-		graphic.pushMatrix();
+	void RobotGraphics::drawCylinderLink(Graphic& graphic, const glm::vec3& pos1, const glm::vec3& pos2, float radie1, float radie2, sdl::Color color) const {
 		graphic.translate(pos1);
-		graphic.multiplyMatrix(glm::mat4{
-			field[0], field[4], field[8], field[12],
-			field[1], field[5], field[9], field[13],
-			field[2], field[6], field[10], field[14],
-			field[3], field[7], field[11], field[15]});
-		float length = (float) diff.length();
-		graphic.addCylinder(radie1, radie2, length, 10, 10, sdl::color::Green);
+		auto matrix = rotateZ(pos1, pos2);
+		graphic.multiplyMatrix(matrix);
+		float length = glm::length(pos2 - pos1);
+		graphic.addCylinder(radie1, radie2, length, 10, 10, color);
 	}
 
 }

@@ -35,7 +35,7 @@ namespace robot {
 		RobotGraphics robot_;
 
 		SphereViewVar view_{8.f, 2.f, 1.f};
-		std::array<float, 6> angles_{0.f, -90.f, 90.f, 0.f, 0.f, 0.f};
+		std::array<float, 6> angles_{0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
 	};
 
 }

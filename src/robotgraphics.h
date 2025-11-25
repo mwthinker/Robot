@@ -3,10 +3,10 @@
 
 #include "graphic.h"
 
-#include <array>
-
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
+
+#include <array>
 
 namespace robot {
 
@@ -20,9 +20,7 @@ namespace robot {
 	class RobotGraphics {
 	public:
 		/// Loads the DH-parameters used in the graphic functions.
-		RobotGraphics() {
-			initDefaultDH();
-		};
+		RobotGraphics();
 
 		/// Draws the robot, baseframe and TCP-frame
 		void draw(Graphic& graphic, const std::array<float, 6>& angles);
@@ -60,16 +58,12 @@ namespace robot {
 		/// Loads the default values for the DH-representation (in meter).
 		void initDefaultDH();
 
-		/// Converts the joint angles for the C-code for the robot to angles
-		/// suited for the DH-representation (and the real robot).
-		void convertAngles(float angles[]) const;
-
 		void drawLine(Graphic& graphic, const glm::vec3& p1, const glm::vec3& p2) const;
 
 		/// Draws the link for the robot.
-		void drawCylinderLink(Graphic& graphic, const glm::vec3& pos1, const glm::vec3& pos2, float radie1, float radie2) const;
+		void drawCylinderLink(Graphic& graphic, const glm::vec3& pos1, const glm::vec3& pos2, float radie1, float radie2, sdl::Color color) const;
 
-		void rotateZ(const glm::vec3& p1, const glm::vec3& p2, float matrix[]) const;
+		glm::mat4 rotateZ(const glm::vec3& p1, const glm::vec3& p2) const;
 	};
 
 }

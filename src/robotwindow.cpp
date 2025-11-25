@@ -194,17 +194,8 @@ namespace robot {
 		for (size_t i = 0; i < angles_.size(); ++i) {
 			anglesInRad_[i] = glm::radians(angles_[i]);
 		}
-		graphic_.pushMatrix();
-		graphic_.translate({1.f, 0.f, 0.55f});
-		graphic_.addCylinder(0.1f, 0.2f, 1, 10, 10, sdl::color::Blue);
-		graphic_.popMatrix();
 
 		robot_.draw(graphic_, anglesInRad_);
-
-		graphic_.pushMatrix();
-		graphic_.translate({0.f, 0.f, 0.7f});
-		graphic_.addSolidSphere(0.2f, 20, 10, sdl::color::html::AliceBlue);
-		graphic_.popMatrix();
 		
 		graphic_.uploadToGpu(gpuDevice_, commandBuffer);
 
