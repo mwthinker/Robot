@@ -15,18 +15,76 @@ namespace robot {
 			return sdl::createSdlSurface(s);
 		}
 
-		SDL_GPUTextureCreateInfo createDepthTextureInfo(int width, int height) {
+		sdl::GpuTexture createDepthTexture(SDL_GPUDevice* gpuDevice, int width, int height, SDL_GPUSampleCount sampleCount) {
+			SDL_PropertiesID props = SDL_CreateProperties();
+			// Only for D3D12 to ensure depth is cleared to 1.0f, ignored on other backends
+			SDL_SetFloatProperty(props, SDL_PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_DEPTH_FLOAT, 1.0f);
+
+			SDL_GPUTextureCreateInfo info{
+				.type = SDL_GPU_TEXTURETYPE_2D,
+				.format = SDL_GPU_TEXTUREFORMAT_D32_FLOAT,
+				.usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET,
+				.width = static_cast<Uint32>(width),
+				.height = static_cast<Uint32>(height),
+				.layer_count_or_depth = 1,
+				.num_levels = 1,
+				.sample_count = sampleCount,
+				.props = props
+			};
+
+			auto texture = sdl::createGpuTexture(gpuDevice, info);
+			SDL_DestroyProperties(props);
+			return texture;
+		}
+
+		SDL_GPUTextureCreateInfo createColorTextureInfo(int width, int height, SDL_GPUTextureFormat format, SDL_GPUSampleCount sampleCount) {
 			return SDL_GPUTextureCreateInfo{
 				.type = SDL_GPU_TEXTURETYPE_2D,
-				.format = SDL_GPU_TEXTUREFORMAT_D32_FLOAT,  // or SDL_GPU_TEXTUREFORMAT_D24_UNORM_S8_UINT
-				.usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET,
+				.format = format,
+				.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET,
+				.width = static_cast<Uint32>(width),
+				.height = static_cast<Uint32>(height),
+				.layer_count_or_depth = 1,
+				.num_levels = 1,
+				.sample_count = sampleCount
+			};
+		}
+
+		sdl::GpuTexture createColorTexture(SDL_GPUDevice* gpuDevice, int width, int height, SDL_GPUSampleCount sampleCount) {
+			SDL_GPUTextureFormat format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+			SDL_GPUTextureCreateInfo textureCreateInfo = createColorTextureInfo(width, height, format, sampleCount);
+			
+			if (!SDL_GPUTextureSupportsSampleCount(gpuDevice, format, sampleCount)) {
+				// Fallback to no multisampling
+				textureCreateInfo.sample_count = SDL_GPU_SAMPLECOUNT_1;
+			}
+
+			if (textureCreateInfo.sample_count == SDL_GPU_SAMPLECOUNT_1) {
+				textureCreateInfo.usage |= SDL_GPU_TEXTUREUSAGE_SAMPLER;
+			}
+			
+			return sdl::createGpuTexture(
+				gpuDevice,
+				textureCreateInfo
+			);
+		}
+
+		sdl::GpuTexture createResolveTexture(SDL_GPUDevice* gpuDevice, int width, int height) {
+			SDL_GPUTextureCreateInfo textureCreateInfo = {
+				.type = SDL_GPU_TEXTURETYPE_2D,
+				.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
+				.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER,
 				.width = static_cast<Uint32>(width),
 				.height = static_cast<Uint32>(height),
 				.layer_count_or_depth = 1,
 				.num_levels = 1
 			};
-		}
 
+			return sdl::createGpuTexture(
+				gpuDevice,
+				textureCreateInfo
+			);
+		}
 	}
 
 	RobotWindow::RobotWindow() {
@@ -39,6 +97,11 @@ namespace robot {
 	void RobotWindow::preLoop() {
 		shader_.load(gpuDevice_);
 
+		// Check MSAA support first
+		if (SDL_GPUTextureSupportsSampleCount(gpuDevice_, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, SDL_GPU_SAMPLECOUNT_4)) {
+			gpuSampleCount_ = SDL_GPU_SAMPLECOUNT_4;
+		}
+
 		// describe the vertex buffers
 		SDL_GPUVertexBufferDescription vertexBufferDescriptions{
 			.slot = 0,
@@ -47,7 +110,7 @@ namespace robot {
 		};
 
 		SDL_GPUColorTargetDescription colorTargetDescription{
-			.format = SDL_GetGPUSwapchainTextureFormat(gpuDevice_, getSdlWindow()),
+			.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
 			.blend_state = SDL_GPUColorTargetBlendState{
 				.src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
 				.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
@@ -90,10 +153,15 @@ namespace robot {
 				.num_vertex_attributes = (Uint32) shader_.attributes.size()
 			},
 			.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
+			.multisample_state = SDL_GPUMultisampleState{
+				.sample_count = gpuSampleCount_
+			},
 			.depth_stencil_state = depthStencilState,
 			.target_info = SDL_GPUGraphicsPipelineTargetInfo{
 				.color_target_descriptions = &colorTargetDescription,
 				.num_color_targets = 1,
+				.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D32_FLOAT,
+				.has_depth_stencil_target = true
 			}
 		};
 		graphicsPipeline_ = sdl::createGpuGraphicsPipeline(gpuDevice_, pipelineInfo);
@@ -109,10 +177,22 @@ namespace robot {
 			.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
 			.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE
 		});
-		
-		depthTexture_ = sdl::createGpuTexture(
+
+		depthTexture_ = createDepthTexture(
 			gpuDevice_,
-			createDepthTextureInfo(800, 800)
+			800, 800,
+			gpuSampleCount_
+		);
+		renderTexture_ = createColorTexture(
+			gpuDevice_,
+			800,
+			800,
+			gpuSampleCount_
+		);
+		resolveTexture_ = createResolveTexture(
+			gpuDevice_,
+			800,
+			800
 		);
 	}
 
@@ -158,12 +238,6 @@ namespace robot {
 	}
 
 	void RobotWindow::renderFrame(const sdl::DeltaTime& deltaTime, SDL_GPUTexture* swapchainTexture, SDL_GPUCommandBuffer* commandBuffer) {
-		SDL_GPUColorTargetInfo targetInfo{
-			.texture = swapchainTexture,
-			.clear_color = clearColor_,
-			.load_op = SDL_GPU_LOADOP_CLEAR,
-			.store_op = SDL_GPU_STOREOP_STORE,
-		};
 		SDL_GPUDepthStencilTargetInfo depthTargetInfo{
 			.texture = depthTexture_.get(),
 			.clear_depth = 1.0f,
@@ -184,18 +258,28 @@ namespace robot {
 		graphic_.loadIdentityMatrix();
 		graphic_.multiplyMatrix(viewMatrix);
 
-
-		drawFloor();
 		std::array<float, 6> anglesInRad_;
 		for (size_t i = 0; i < angles_.size(); ++i) {
 			anglesInRad_[i] = glm::radians(angles_[i]);
 		}
 
 		robot_.draw(graphic_, anglesInRad_);
+		drawFloor();
 		
 		graphic_.uploadToGpu(gpuDevice_, commandBuffer);
 
-		SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(commandBuffer, &targetInfo, 1, &depthTargetInfo);
+		SDL_GPUColorTargetInfo colorTargetInfo{
+			.texture = renderTexture_.get(),
+			.clear_color = clearColor_,
+			.load_op = SDL_GPU_LOADOP_CLEAR
+		};
+		if (gpuSampleCount_ == SDL_GPU_SAMPLECOUNT_1) {
+			colorTargetInfo.store_op = SDL_GPU_STOREOP_STORE;
+		} else {
+			colorTargetInfo.store_op = SDL_GPU_STOREOP_RESOLVE;
+			colorTargetInfo.resolve_texture = resolveTexture_.get();
+		}
+		SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(commandBuffer, &colorTargetInfo, 1, &depthTargetInfo);
 
 		int w, h;
 		SDL_GetWindowSize(window_, &w, &h);
@@ -218,6 +302,28 @@ namespace robot {
 		graphic_.draw(renderPass);
 
 		SDL_EndGPURenderPass(renderPass);
+
+		SDL_GPUTexture* blitSourceTexture = (colorTargetInfo.resolve_texture != nullptr) ? colorTargetInfo.resolve_texture : colorTargetInfo.texture;
+		SDL_GPUBlitInfo blitInfo{
+			.source = {
+				.texture = blitSourceTexture,
+				.x = 0,
+				.y = 0,
+				.w = (Uint32) w,
+				.h = (Uint32) h
+			},
+			.destination = {
+				.texture = swapchainTexture,
+				.x = 0,
+				.y = 0,
+				.w = (Uint32) w,
+				.h = (Uint32) h
+			},
+			.load_op = SDL_GPU_LOADOP_DONT_CARE,
+			.filter = SDL_GPU_FILTER_LINEAR
+		};
+
+		SDL_BlitGPUTexture(commandBuffer, &blitInfo);
 	}
 
 	void RobotWindow::reshape(SDL_GPUCommandBuffer* commandBuffer, SDL_GPURenderPass* renderPass, int width, int height) {
@@ -260,10 +366,22 @@ namespace robot {
 	void RobotWindow::processEvent(const SDL_Event& windowEvent) {
 		switch (windowEvent.type) {
 			case SDL_EVENT_WINDOW_RESIZED:
-				depthTexture_ = sdl::createGpuTexture(
-					gpuDevice_,
-					createDepthTextureInfo(windowEvent.window.data1, windowEvent.window.data2)
-				);
+				if (SDL_GetWindowID(window_) == windowEvent.window.windowID) {
+					depthTexture_ = createDepthTexture(
+						gpuDevice_,
+						windowEvent.window.data1, windowEvent.window.data2,
+						gpuSampleCount_
+					);
+					renderTexture_ = createColorTexture(
+						gpuDevice_,
+						windowEvent.window.data1, windowEvent.window.data2,
+						gpuSampleCount_
+					);
+					resolveTexture_ = createResolveTexture(
+						gpuDevice_,
+						windowEvent.window.data1, windowEvent.window.data2
+					);
+				}
 				break;
 			case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
 			case SDL_EVENT_QUIT:

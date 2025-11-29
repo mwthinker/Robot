@@ -33,6 +33,11 @@ namespace robot {
 		sdl::GpuSampler sampler_;
 		sdl::GpuTexture texture_;
 		sdl::GpuTexture depthTexture_;
+		sdl::GpuTexture renderTexture_;
+		sdl::GpuTexture resolveTexture_;
+		
+		SDL_GPUSampleCount gpuSampleCount_ = SDL_GPU_SAMPLECOUNT_1;
+
 		RobotGraphics robot_;
 
 		SphereViewVar view_{
