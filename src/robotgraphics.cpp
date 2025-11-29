@@ -70,6 +70,8 @@ namespace robot {
 		//glLineWidth(3.0f);
 		auto color = sdl::Color::createU32(230, 100, 40);
 
+		[[maybe_unused]] auto cc = sdl::Color{230, 100, 40};
+
 		graphic.pushMatrix(); // Bas-klumpen som roboten sitter på
 		graphic.scale(glm::vec3{1.0f, 0.8f, 0.3f});
 		graphic.translate(glm::vec3{0.0f, 0.0f, 0.15f});

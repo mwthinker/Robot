@@ -151,7 +151,7 @@ namespace robot {
 			// Camera position
 			ImGui::Begin("Camera Position");
 			ImGui::SliderFloat("Radius", &view_.r, 0.1f, 20.f);
-			ImGui::SliderFloat("Theta", &view_.theta, 0.01f, glm::pi<float>() - 0.01f);
+			ImGui::SliderFloat("Theta", &view_.theta, 0.01f, glm::pi<float>()/2);
 			ImGui::SliderFloat("Phi", &view_.phi, -glm::pi<float>(), glm::pi<float>());
 			ImGui::End();
 		});
@@ -173,16 +173,12 @@ namespace robot {
 			.stencil_store_op = SDL_GPU_STOREOP_DONT_CARE,
 			.cycle = false
 		};
+		camera_.update(deltaTime, view_);
 
 		// Compute view matrix using glm::lookAt based on view_ parameters
-		glm::vec3 eye{
-			view_.r * std::cos(view_.phi) * std::sin(view_.theta),
-			view_.r * std::sin(view_.phi) * std::sin(view_.theta),
-			view_.r * std::cos(view_.theta)
-		};
 		glm::vec3 center{0.0f, 0.0f, 0.7f};
 		glm::vec3 up{0.0f, 0.0f, 1.0f};
-		glm::mat4 viewMatrix = glm::lookAt(eye, center, up);
+		glm::mat4 viewMatrix = glm::lookAt(camera_.getEye(), center, up);
 
 		graphic_.clear();
 		graphic_.loadIdentityMatrix();
@@ -279,22 +275,22 @@ namespace robot {
 						sdl::Window::quit();
 						break;
 					case SDLK_LEFT:
-						view_.addPhi(-0.05f);
+						view_.phi += -0.05f;
 						break;
 					case SDLK_RIGHT:
-						view_.addPhi(0.05f);
+						view_.phi += 0.05f;
 						break;
 					case SDLK_UP:
-						view_.addTheta(-0.05f);
+						view_.theta += -0.05f;
 						break;
 					case SDLK_DOWN:
-						view_.addTheta(0.05f);
+						view_.theta += 0.05f;
 						break;
 					case SDLK_PAGEUP:
-						view_.addR(0.1f);
+						view_.r += 0.1f;
 						break;
 					case SDLK_PAGEDOWN:
-						view_.addR(-0.1f);
+						view_.r += -0.1f;
 						break;
 
 					case SDLK_Q:

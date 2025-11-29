@@ -4,6 +4,7 @@
 #include "graphic.h"
 #include "sphereviewvar.h"
 #include "robotgraphics.h"
+#include "camera.h"
 
 #include <sdl/window.h>
 
@@ -34,8 +35,14 @@ namespace robot {
 		sdl::GpuTexture depthTexture_;
 		RobotGraphics robot_;
 
-		SphereViewVar view_{8.f, 2.f, 1.f};
+		SphereViewVar view_{
+			.phi = -1.4f,
+			.theta = 1,
+			.r = 8.5
+		};
 		std::array<float, 6> angles_{0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
+
+		Camera camera_{view_};
 	};
 
 }
