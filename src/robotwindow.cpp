@@ -90,8 +90,8 @@ namespace robot {
 	RobotWindow::RobotWindow() {
 		setSize(800, 800);
 		setTitle("Robot");
-		setShowDemoWindow(true);
-		setShowColorWindow(true);
+		setShowDemoWindow(false);
+		setShowColorWindow(false);
 	}
 
 	void RobotWindow::preLoop() {
@@ -215,8 +215,7 @@ namespace robot {
 
 			const auto& jointPositions = robot_.getJointPositions();
 			ImGui::Begin("Joint Positions");
-			for (size_t i = 0; i < jointPositions.size(); ++i)
-				{
+			for (size_t i = 0; i < jointPositions.size(); ++i) {
 				const auto& pos = jointPositions[i];
 				ImGui::Text(
 					"Joint %d: (%.2f, %.2f, %.2f)",
@@ -237,6 +236,7 @@ namespace robot {
 
 			// Light settings
 			ImGui::Begin("Light Settings");
+			ImGui::Checkbox("Display Light Bulb", &displayLightBulb_);
 			ImGui::SliderFloat("Light Position", &lightPos_.z, 2.f, 10.f);
 			static ImVec4 color = lightColor_;
 			ImGui::ColorEdit3("Light Color", (float*)& color);
@@ -259,14 +259,8 @@ namespace robot {
 		};
 		camera_.update(deltaTime, view_);
 
-		// Compute view matrix using glm::lookAt based on view_ parameters
-		glm::vec3 center{0.0f, 0.0f, 0.7f};
-		glm::vec3 up{0.0f, 0.0f, 1.0f};
-		glm::mat4 viewMatrix = glm::lookAt(camera_.getEye(), center, up);
-
 		graphic_.clear();
 		graphic_.loadIdentityMatrix();
-		graphic_.multiplyMatrix(viewMatrix);
 
 		std::array<float, 6> anglesInRad_;
 		for (size_t i = 0; i < angles_.size(); ++i) {
@@ -275,6 +269,11 @@ namespace robot {
 
 		robot_.draw(graphic_, anglesInRad_);
 		drawFloor();
+		if (displayLightBulb_) {
+			graphic_.loadIdentityMatrix();
+			graphic_.translate(lightPos_);
+			graphic_.addSolidSphere(0.1f, 10, 10, lightColor_);
+		}
 		
 		graphic_.uploadToGpu(gpuDevice_, commandBuffer);
 
@@ -356,7 +355,11 @@ namespace robot {
 		float aspect = (float) width / height;
 		auto projection = glm::perspective(glm::radians(kFovY), aspect, nearDist, farDist);
 
-		shader_.uploadProjectionMatrix(commandBuffer, projection);
+		glm::vec3 center{0.0f, 0.0f, 0.7f};
+		glm::vec3 up{0.0f, 0.0f, 1.0f};
+		glm::mat4 viewMatrix = glm::lookAt(camera_.getEye(), center, up);
+
+		shader_.uploadProjectionMatrix(commandBuffer, projection * viewMatrix);
 		shader_.uploadLightingData(commandBuffer, lightPos_, lightRadius_, lightColor_, lightAmbientStrength_);
 	}
 

@@ -50,6 +50,7 @@ namespace robot {
 
 		Camera camera_{view_};
 
+		bool displayLightBulb_ = true;
 		glm::vec3 lightPos_{0.0f, 0.f, 5.0f};
 		sdl::Color lightColor_ = sdl::color::White;
 		float lightRadius_ = 10.f;
