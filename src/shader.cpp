@@ -8,10 +8,11 @@ namespace robot {
 
 	namespace {
 
-		struct alignas(16) LightData {
+		struct alignas(16) LightDataPs {
 			glm::vec4 lightPos;      // xyz + padding
 			glm::vec4 lightColor;    // rgb + padding
 			glm::vec4 params;        // x = radius, y = ambientStrength
+			glm::vec4 cameraPos;     // xyz + padding
 		};
 	}
 
@@ -68,13 +69,16 @@ namespace robot {
 		const glm::vec3& lightPos,
 		float lightRadius,
 		sdl::Color color,
-		float ambientStrength) {
+		float ambientStrength,
+		float shininess,
+		const glm::vec3& cameraPos) {
 
 		// Maps to b1 in fragment shader
-		LightData lightData{
+		LightDataPs lightData{
 			.lightPos = glm::vec4(lightPos, 1.0f),
 			.lightColor = color,
-			.params = glm::vec4(lightRadius, ambientStrength, 0.0f, 0.0f)
+			.params = glm::vec4(lightRadius, ambientStrength, shininess, 0.0f),
+			.cameraPos = glm::vec4(cameraPos, 1.0f)
 		};
 		SDL_PushGPUFragmentUniformData(commandBuffer, 0, &lightData, sizeof(lightData));
 	}

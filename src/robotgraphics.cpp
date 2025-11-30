@@ -70,8 +70,6 @@ namespace robot {
 		//glLineWidth(3.0f);
 		auto color = sdl::Color::createU32(230, 100, 40);
 
-		[[maybe_unused]] auto cc = sdl::Color{230, 100, 40};
-
 		graphic.pushMatrix(); // Bas-klumpen som roboten sitter på
 		graphic.scale(glm::vec3{1.0f, 0.8f, 0.3f});
 		graphic.translate(glm::vec3{0.0f, 0.0f, 0.15f});
@@ -79,23 +77,23 @@ namespace robot {
 		graphic.popMatrix();
 
 		graphic.pushMatrix();
-		drawCylinderLink(graphic, glm::vec3{jointPositions_[0]}, glm::vec3{jointPositions_[1]}, 0.05f, 0.05f, sdl::color::Red);
+		drawCylinderLink(graphic, glm::vec3{jointPositions_[0]}, glm::vec3{jointPositions_[1]}, 0.05f, 0.05f, color);
 		graphic.translate(glm::vec3{0.0f, 0.0f, 0.05f});
 		graphic.addSolidSphere(0.05f * 1.8f, 10, 5, color);
 		graphic.popMatrix();
 
 		graphic.pushMatrix();
-		drawCylinderLink(graphic, glm::vec3{jointPositions_[1]}, glm::vec3{jointPositions_[2]}, 0.05f, 0.03f, sdl::color::Green);
+		drawCylinderLink(graphic, glm::vec3{jointPositions_[1]}, glm::vec3{jointPositions_[2]}, 0.05f, 0.03f, color);
 		graphic.addSolidSphere(0.05f * 1.4f, 10, 3, color);
 		graphic.popMatrix();
 
 		graphic.pushMatrix();
-		drawCylinderLink(graphic, glm::vec3{jointPositions_[3]}, glm::vec3{jointPositions_[5]}, 0.03f, 0.02f, sdl::color::Blue);
+		drawCylinderLink(graphic, glm::vec3{jointPositions_[3]}, glm::vec3{jointPositions_[5]}, 0.03f, 0.02f, color);
 		graphic.addSolidSphere(0.03f * 1.4f, 10, 5, color);
 		graphic.popMatrix();
 
 		graphic.pushMatrix();
-		drawCylinderLink(graphic, glm::vec3{jointPositions_[5]}, glm::vec3{jointPositions_[6]}, 0.02f, 0.01f, sdl::color::html::Chocolate);
+		drawCylinderLink(graphic, glm::vec3{jointPositions_[5]}, glm::vec3{jointPositions_[6]}, 0.02f, 0.01f, color);
 		graphic.addSolidSphere(0.02f * 1.4f, 10, 3, color);
 		graphic.popMatrix();
 

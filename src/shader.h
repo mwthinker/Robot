@@ -30,7 +30,9 @@ namespace robot {
 			const glm::vec3& lightPos,
 			float lightRadius,
 			sdl::Color color,
-			float ambientStrength);
+			float ambientStrength,
+			float shininess,
+			const glm::vec3& cameraPos);
 
 		static constexpr std::array<SDL_GPUVertexAttribute, 4> attributes = {
 			// position maps to TEXCOORD0

@@ -249,6 +249,7 @@ namespace robot {
 			lightColor_ = sdl::Color{color.x, color.y, color.z, color.w};
 			ImGui::SliderFloat("Light Radius", &lightRadius_, 0.1f, 20.f);
 			ImGui::SliderFloat("Ambient Strength", &lightAmbientStrength_, 0.f, 1.f);
+			ImGui::SliderFloat("Shininess", &lightShininess_, 1.f, 128.f);
 
 			std::array items = {"SDL_GPU_SAMPLECOUNT_1", "SDL_GPU_SAMPLECOUNT_2", "SDL_GPU_SAMPLECOUNT_4", "SDL_GPU_SAMPLECOUNT_8"};
 			static int item = static_cast<int>(gpuSampleCount_);
@@ -371,10 +372,11 @@ namespace robot {
 
 		glm::vec3 center{0.0f, 0.0f, 0.7f};
 		glm::vec3 up{0.0f, 0.0f, 1.0f};
-		glm::mat4 viewMatrix = glm::lookAt(camera_.getEye(), center, up);
+		glm::vec3 eye = camera_.getEye();
+		glm::mat4 viewMatrix = glm::lookAt(eye, center, up);
 
 		shader_.uploadProjectionMatrix(commandBuffer, projection * viewMatrix);
-		shader_.uploadLightingData(commandBuffer, lightPos_, lightRadius_, lightColor_, lightAmbientStrength_);
+		shader_.uploadLightingData(commandBuffer, lightPos_, lightRadius_, lightColor_, lightAmbientStrength_, lightShininess_, eye);
 	}
 
 	void RobotWindow::drawFloor() {

@@ -57,6 +57,7 @@ namespace robot {
 		sdl::Color lightColor_ = sdl::color::White;
 		float lightRadius_ = 10.f;
 		float lightAmbientStrength_ = 0.2f;
+		float lightShininess_ = 64.f;
 	};
 
 }
