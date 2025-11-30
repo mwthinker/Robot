@@ -28,6 +28,8 @@ namespace robot {
 
 		void drawFloor();
 
+		void setupPipeline();
+
 		Graphic graphic_;
 		Shader shader_;
 		sdl::GpuGraphicsPipeline graphicsPipeline_;
@@ -37,7 +39,7 @@ namespace robot {
 		sdl::GpuTexture renderTexture_;
 		sdl::GpuTexture resolveTexture_;
 		
-		SDL_GPUSampleCount gpuSampleCount_ = SDL_GPU_SAMPLECOUNT_1;
+		SDL_GPUSampleCount gpuSampleCount_ = SDL_GPU_SAMPLECOUNT_4;
 
 		RobotGraphics robot_;
 

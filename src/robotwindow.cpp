@@ -97,9 +97,13 @@ namespace robot {
 	void RobotWindow::preLoop() {
 		shader_.load(gpuDevice_);
 
+		setupPipeline();
+	}
+
+	void RobotWindow::setupPipeline() {
 		// Check MSAA support first
-		if (SDL_GPUTextureSupportsSampleCount(gpuDevice_, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, SDL_GPU_SAMPLECOUNT_4)) {
-			gpuSampleCount_ = SDL_GPU_SAMPLECOUNT_4;
+		if (!SDL_GPUTextureSupportsSampleCount(gpuDevice_, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, gpuSampleCount_)) {
+			gpuSampleCount_ = SDL_GPU_SAMPLECOUNT_1;
 		}
 
 		// describe the vertex buffers
@@ -119,28 +123,28 @@ namespace robot {
 				.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
 				.alpha_blend_op = SDL_GPU_BLENDOP_ADD,
 				.enable_blend = true
-			}
+		}
 		};
 
 		SDL_GPUDepthStencilState depthStencilState{
 			.compare_op = SDL_GPU_COMPAREOP_LESS,
 			.back_stencil_state = {
-					.fail_op = SDL_GPU_STENCILOP_KEEP,
-					.pass_op = SDL_GPU_STENCILOP_KEEP,
-					.depth_fail_op = SDL_GPU_STENCILOP_KEEP,
-					.compare_op = SDL_GPU_COMPAREOP_ALWAYS,
-			},
-			.front_stencil_state = {
-					.fail_op = SDL_GPU_STENCILOP_KEEP,
-					.pass_op = SDL_GPU_STENCILOP_KEEP,
-					.depth_fail_op = SDL_GPU_STENCILOP_KEEP,
-					.compare_op = SDL_GPU_COMPAREOP_ALWAYS,
-			},
-			.compare_mask = 0,
-			.write_mask = 0,
-			.enable_depth_test = true,
-			.enable_depth_write = true,
-			.enable_stencil_test = false
+				.fail_op = SDL_GPU_STENCILOP_KEEP,
+				.pass_op = SDL_GPU_STENCILOP_KEEP,
+				.depth_fail_op = SDL_GPU_STENCILOP_KEEP,
+				.compare_op = SDL_GPU_COMPAREOP_ALWAYS,
+		},
+		.front_stencil_state = {
+				.fail_op = SDL_GPU_STENCILOP_KEEP,
+				.pass_op = SDL_GPU_STENCILOP_KEEP,
+				.depth_fail_op = SDL_GPU_STENCILOP_KEEP,
+				.compare_op = SDL_GPU_COMPAREOP_ALWAYS,
+		},
+		.compare_mask = 0,
+		.write_mask = 0,
+		.enable_depth_test = true,
+		.enable_depth_write = true,
+		.enable_stencil_test = false
 		};
 
 		SDL_GPUGraphicsPipelineCreateInfo pipelineInfo{
@@ -150,19 +154,19 @@ namespace robot {
 				.vertex_buffer_descriptions = &vertexBufferDescriptions,
 				.num_vertex_buffers = 1,
 				.vertex_attributes = shader_.attributes.data(),
-				.num_vertex_attributes = (Uint32) shader_.attributes.size()
-			},
+				.num_vertex_attributes = (Uint32)shader_.attributes.size()
+		},
 			.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
 			.multisample_state = SDL_GPUMultisampleState{
 				.sample_count = gpuSampleCount_
-			},
+		},
 			.depth_stencil_state = depthStencilState,
 			.target_info = SDL_GPUGraphicsPipelineTargetInfo{
 				.color_target_descriptions = &colorTargetDescription,
 				.num_color_targets = 1,
 				.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D32_FLOAT,
 				.has_depth_stencil_target = true
-			}
+		}
 		};
 		graphicsPipeline_ = sdl::createGpuGraphicsPipeline(gpuDevice_, pipelineInfo);
 
@@ -176,23 +180,24 @@ namespace robot {
 			.address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
 			.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
 			.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE
-		});
+			});
+
+		int w, h;
+		SDL_GetWindowSize(window_, &w, &h);
 
 		depthTexture_ = createDepthTexture(
 			gpuDevice_,
-			800, 800,
+			w, h,
 			gpuSampleCount_
 		);
 		renderTexture_ = createColorTexture(
 			gpuDevice_,
-			800,
-			800,
+			w, h,
 			gpuSampleCount_
 		);
 		resolveTexture_ = createResolveTexture(
 			gpuDevice_,
-			800,
-			800
+			w, h
 		);
 	}
 
@@ -219,7 +224,7 @@ namespace robot {
 				const auto& pos = jointPositions[i];
 				ImGui::Text(
 					"Joint %d: (%.2f, %.2f, %.2f)",
-					(int)(i + 1),
+					static_cast<int>(i + 1),
 					pos.x,
 					pos.y,
 					pos.z
@@ -234,8 +239,9 @@ namespace robot {
 			ImGui::SliderFloat("Phi", &view_.phi, -glm::pi<float>(), glm::pi<float>());
 			ImGui::End();
 
-			// Light settings
-			ImGui::Begin("Light Settings");
+			// Graphic settings
+			ImGui::Begin("Graphic Settings");
+			
 			ImGui::Checkbox("Display Light Bulb", &displayLightBulb_);
 			ImGui::SliderFloat("Light Position", &lightPos_.z, 2.f, 10.f);
 			static ImVec4 color = lightColor_;
@@ -243,6 +249,14 @@ namespace robot {
 			lightColor_ = sdl::Color{color.x, color.y, color.z, color.w};
 			ImGui::SliderFloat("Light Radius", &lightRadius_, 0.1f, 20.f);
 			ImGui::SliderFloat("Ambient Strength", &lightAmbientStrength_, 0.f, 1.f);
+
+			std::array items = {"SDL_GPU_SAMPLECOUNT_1", "SDL_GPU_SAMPLECOUNT_2", "SDL_GPU_SAMPLECOUNT_4", "SDL_GPU_SAMPLECOUNT_8"};
+			static int item = static_cast<int>(gpuSampleCount_);
+			if (ImGui::Combo("MSAA Sample Count", &item, items.data(), static_cast<int>(items.size()))) {
+				gpuSampleCount_ = static_cast<SDL_GPUSampleCount>(item);
+				setupPipeline();
+			}
+			
 			ImGui::End();
 		});
 	}
