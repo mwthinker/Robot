@@ -123,7 +123,7 @@ namespace robot {
 				.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
 				.alpha_blend_op = SDL_GPU_BLENDOP_ADD,
 				.enable_blend = true
-		}
+			}
 		};
 
 		SDL_GPUDepthStencilState depthStencilState{
@@ -133,18 +133,18 @@ namespace robot {
 				.pass_op = SDL_GPU_STENCILOP_KEEP,
 				.depth_fail_op = SDL_GPU_STENCILOP_KEEP,
 				.compare_op = SDL_GPU_COMPAREOP_ALWAYS,
-		},
-		.front_stencil_state = {
-				.fail_op = SDL_GPU_STENCILOP_KEEP,
-				.pass_op = SDL_GPU_STENCILOP_KEEP,
-				.depth_fail_op = SDL_GPU_STENCILOP_KEEP,
-				.compare_op = SDL_GPU_COMPAREOP_ALWAYS,
-		},
-		.compare_mask = 0,
-		.write_mask = 0,
-		.enable_depth_test = true,
-		.enable_depth_write = true,
-		.enable_stencil_test = false
+			},
+			.front_stencil_state = {
+					.fail_op = SDL_GPU_STENCILOP_KEEP,
+					.pass_op = SDL_GPU_STENCILOP_KEEP,
+					.depth_fail_op = SDL_GPU_STENCILOP_KEEP,
+					.compare_op = SDL_GPU_COMPAREOP_ALWAYS,
+			},
+			.compare_mask = 0,
+			.write_mask = 0,
+			.enable_depth_test = true,
+			.enable_depth_write = true,
+			.enable_stencil_test = false
 		};
 
 		SDL_GPUGraphicsPipelineCreateInfo pipelineInfo{
@@ -180,7 +180,7 @@ namespace robot {
 			.address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
 			.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
 			.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE
-			});
+		});
 
 		int w, h;
 		SDL_GetWindowSize(window_, &w, &h);

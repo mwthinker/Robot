@@ -17,6 +17,7 @@ namespace robot {
 		glm::vec3 position;
 		glm::vec2 tex;
 		glm::vec4 color;
+		glm::vec3 normal;
 	};
 	static_assert(sdl::VertexType<Vertex>, "Vertex must satisfy VertexType");
 
@@ -31,7 +32,7 @@ namespace robot {
 			sdl::Color color,
 			float ambientStrength);
 
-		static constexpr std::array<SDL_GPUVertexAttribute, 3> attributes = {
+		static constexpr std::array<SDL_GPUVertexAttribute, 4> attributes = {
 			// position maps to TEXCOORD0
 			SDL_GPUVertexAttribute{
 				.location = 0,
@@ -52,6 +53,13 @@ namespace robot {
 					.buffer_slot = 0,
 					.format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4,
 					.offset = offsetof(Vertex, color)
+			},
+			// normal maps to TEXCOORD3
+			SDL_GPUVertexAttribute{
+					.location = 3,
+					.buffer_slot = 0,
+					.format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
+					.offset = offsetof(Vertex, normal)
 			}
 		};
 

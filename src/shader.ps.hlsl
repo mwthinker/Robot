@@ -3,7 +3,8 @@ struct VSOutput
     float4 position   : SV_Position;
     float2 tex        : TEXCOORD0;
     float4 color      : COLOR0;
-    float3 worldPos   : TEXCOORD1;
+    float3 normal     : TEXCOORD1;
+    float3 worldPos   : TEXCOORD2;
 };
 
 Texture2D<float4> Texture : register(t0, space2);

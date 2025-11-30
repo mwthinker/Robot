@@ -158,22 +158,58 @@ namespace robot {
 
 		void addSolidCube(float size, sdl::Color color) {
 			batch_.startBatch();
-			addVertex(glm::vec3{-size / 2, -size / 2, -size / 2}, NoTexture, color);
-			addVertex(glm::vec3{size / 2, -size / 2, -size / 2}, NoTexture, color);	
-			addVertex(glm::vec3{size / 2, size / 2, -size / 2}, NoTexture, color);
-			addVertex(glm::vec3{-size / 2, size / 2, -size / 2}, NoTexture, color);
-			addVertex(glm::vec3{-size / 2, -size / 2, size / 2}, NoTexture, color);
-			addVertex(glm::vec3{size / 2, -size / 2, size / 2}, NoTexture, color);
-			addVertex(glm::vec3{size / 2, size / 2, size / 2}, NoTexture, color);
-			addVertex(glm::vec3{-size / 2, size / 2, size / 2}, NoTexture, color);
+			
+			float halfSize = size / 2.0f;
+			
+			// Back face (normal pointing in -Z direction)
+			glm::vec4 normalBack{0.0f, 0.0f, -1.0f, 0.0f};
+			addVertex(glm::vec3{-halfSize, -halfSize, -halfSize}, NoTexture, color, normalBack);
+			addVertex(glm::vec3{halfSize, -halfSize, -halfSize}, NoTexture, color, normalBack);
+			addVertex(glm::vec3{halfSize, halfSize, -halfSize}, NoTexture, color, normalBack);
+			addVertex(glm::vec3{-halfSize, halfSize, -halfSize}, NoTexture, color, normalBack);
+			
+			// Front face (normal pointing in +Z direction)
+			glm::vec4 normalFront{0.0f, 0.0f, 1.0f, 0.0f};
+			addVertex(glm::vec3{-halfSize, -halfSize, halfSize}, NoTexture, color, normalFront);
+			addVertex(glm::vec3{halfSize, -halfSize, halfSize}, NoTexture, color, normalFront);
+			addVertex(glm::vec3{halfSize, halfSize, halfSize}, NoTexture, color, normalFront);
+			addVertex(glm::vec3{-halfSize, halfSize, halfSize}, NoTexture, color, normalFront);
+			
+			// Left face (normal pointing in -X direction)
+			glm::vec4 normalLeft{-1.0f, 0.0f, 0.0f, 0.0f};
+			addVertex(glm::vec3{-halfSize, -halfSize, -halfSize}, NoTexture, color, normalLeft);
+			addVertex(glm::vec3{-halfSize, -halfSize, halfSize}, NoTexture, color, normalLeft);
+			addVertex(glm::vec3{-halfSize, halfSize, halfSize}, NoTexture, color, normalLeft);
+			addVertex(glm::vec3{-halfSize, halfSize, -halfSize}, NoTexture, color, normalLeft);
+			
+			// Right face (normal pointing in +X direction)
+			glm::vec4 normalRight{1.0f, 0.0f, 0.0f, 0.0f};
+			addVertex(glm::vec3{halfSize, -halfSize, -halfSize}, NoTexture, color, normalRight);
+			addVertex(glm::vec3{halfSize, -halfSize, halfSize}, NoTexture, color, normalRight);
+			addVertex(glm::vec3{halfSize, halfSize, halfSize}, NoTexture, color, normalRight);
+			addVertex(glm::vec3{halfSize, halfSize, -halfSize}, NoTexture, color, normalRight);
+			
+			// Top face (normal pointing in +Y direction)
+			glm::vec4 normalTop{0.0f, 1.0f, 0.0f, 0.0f};
+			addVertex(glm::vec3{-halfSize, halfSize, -halfSize}, NoTexture, color, normalTop);
+			addVertex(glm::vec3{halfSize, halfSize, -halfSize}, NoTexture, color, normalTop);
+			addVertex(glm::vec3{halfSize, halfSize, halfSize}, NoTexture, color, normalTop);
+			addVertex(glm::vec3{-halfSize, halfSize, halfSize}, NoTexture, color, normalTop);
+			
+			// Bottom face (normal pointing in -Y direction)
+			glm::vec4 normalBottom{0.0f, -1.0f, 0.0f, 0.0f};
+			addVertex(glm::vec3{-halfSize, -halfSize, -halfSize}, NoTexture, color, normalBottom);
+			addVertex(glm::vec3{halfSize, -halfSize, -halfSize}, NoTexture, color, normalBottom);
+			addVertex(glm::vec3{halfSize, -halfSize, halfSize}, NoTexture, color, normalBottom);
+			addVertex(glm::vec3{-halfSize, -halfSize, halfSize}, NoTexture, color, normalBottom);
 
 			batch_.insertIndices({
 				0, 1, 2, 2, 3, 0,		// Back face
 				4, 5, 6, 6, 7, 4,		// Front face
-				0, 4, 7, 7, 3, 0,		// Left face
-				1, 5, 6, 6, 2, 1,		// Right face
-				3, 2, 6, 6, 7, 3,		// Top face
-				0, 1, 5, 5, 4, 0		// Bottom face
+				8, 9, 10, 10, 11, 8,	// Left face
+				12, 13, 14, 14, 15, 12,	// Right face
+				16, 17, 18, 18, 19, 16,	// Top face
+				20, 21, 22, 22, 23, 20	// Bottom face
 			});
 		}
 
@@ -181,7 +217,9 @@ namespace robot {
 			batch_.startBatch();
 
 			// Top vertex
-			addVertex(glm::vec3{0.0f, radius, 0.0f}, NoTexture, color);
+			glm::vec3 topPos{0.0f, radius, 0.0f};
+			glm::vec4 topNormal{0.0f, 1.0f, 0.0f, 0.0f};
+			addVertex(topPos, NoTexture, color, topNormal);
 
 			// Generate vertices for each stack
 			for (unsigned int stack = 1; stack < stacks; ++stack) {
@@ -194,12 +232,16 @@ namespace robot {
 					float x = xy * std::cos(sliceAngle);
 					float z = xy * std::sin(sliceAngle);
 
-					addVertex(glm::vec3{x, y, z}, NoTexture, color);
+					glm::vec3 pos{x, y, z};
+					glm::vec4 normal{glm::normalize(glm::vec3{x, y, z}), 0.0f};
+					addVertex(pos, NoTexture, color, normal);
 				}
 			}
 
 			// Bottom vertex
-			addVertex(glm::vec3{0.0f, -radius, 0.0f}, NoTexture, color);
+			glm::vec3 bottomPos{0.0f, -radius, 0.0f};
+			glm::vec4 bottomNormal{0.0f, -1.0f, 0.0f, 0.0f};
+			addVertex(bottomPos, NoTexture, color, bottomNormal);
 
 			// Generate indices for top cap
 			for (unsigned int slice = 0; slice < slices; ++slice) {
@@ -233,12 +275,13 @@ namespace robot {
 
 		void addRectangle(const glm::vec2& pos, const glm::vec2& size, sdl::Color color) {
 			glm::vec3 pos3{pos, 0.0f};
+			glm::vec3 normal = glm::vec3{0.0f, 0.0f, 1.0f};
 
 			batch_.startBatch();
-			addVertex(pos3, NoTexture, color);
-			addVertex({pos3.x + size.x, pos3.y, pos3.z}, NoTexture, color);
-			addVertex({pos3.x + size.x, pos3.y + size.y, pos3.z}, NoTexture, color);
-			addVertex({pos3.x, pos3.y + size.y, pos3.z}, NoTexture, color);
+			addVertex(pos3, NoTexture, color, normal);
+			addVertex({pos3.x + size.x, pos3.y, pos3.z}, NoTexture, color, normal);
+			addVertex({pos3.x + size.x, pos3.y + size.y, pos3.z}, NoTexture, color, normal);
+			addVertex({pos3.x, pos3.y + size.y, pos3.z}, NoTexture, color, normal);
 
 			batch_.insertIndices({
 				0, 1, 2,
@@ -367,7 +410,9 @@ namespace robot {
 					float y = stackRadius * std::sin(angle);
 					float z = stackHeight;
 
-					addVertex(glm::vec3{x, y, z}, NoTexture, color);
+					// Normal perpendicular to cylinder surface (radial direction in XY plane)
+					glm::vec3 normalDir = glm::normalize(glm::vec3{std::cos(angle), std::sin(angle), 0.0f});
+					addVertex(glm::vec3{x, y, z}, NoTexture, color, normalDir);
 				}
 			}
 
@@ -386,13 +431,14 @@ namespace robot {
 			
 			// Bottom cap (base at Z=0)
 			unsigned int vertexOffset = (stacks + 1) * (slices + 1);
-			addVertex(glm::vec3{0.0f, 0.0f, 0.0f}, NoTexture, color);
+			glm::vec3 bottomNormal{0.0f, 0.0f, -1.0f};
+			addVertex(glm::vec3{0.0f, 0.0f, 0.0f}, NoTexture, color, bottomNormal);
 
 			for (unsigned int slice = 0; slice <= slices; ++slice) {
 				float angle = 2.0f * Pi * slice / slices;
 				float x = baseRadius * std::cos(angle);
-				float y = baseRadius * std::sin(angle);  // Fixed: was z
-				addVertex(glm::vec3{x, y, 0.0f}, NoTexture, color);  // Fixed: Z=0
+				float y = baseRadius * std::sin(angle);
+				addVertex(glm::vec3{x, y, 0.0f}, NoTexture, color, bottomNormal);
 			}
 
 			// Bottom cap indices
@@ -404,13 +450,14 @@ namespace robot {
 
 			// Top cap (at Z=height)
 			vertexOffset += slices + 2;
-			addVertex(glm::vec3{0.0f, 0.0f, height}, NoTexture, color);  // Fixed: Z=height
+			glm::vec3 topNormal{0.0f, 0.0f, 1.0f};
+			addVertex(glm::vec3{0.0f, 0.0f, height}, NoTexture, color, topNormal);
 
 			for (unsigned int slice = 0; slice <= slices; ++slice) {
 				float angle = 2.0f * Pi * slice / slices;
 				float x = topRadius * std::cos(angle);
-				float y = topRadius * std::sin(angle);  // Fixed: was z
-				addVertex(glm::vec3{x, y, height}, NoTexture, color);  // Fixed: Z=height
+				float y = topRadius * std::sin(angle);
+				addVertex(glm::vec3{x, y, height}, NoTexture, color, topNormal);
 			}
 
 			// Top cap indices - reversed winding order from bottom
@@ -438,8 +485,8 @@ namespace robot {
 		}
 
 	private:
-		void addVertex(const glm::vec3& position, const glm::vec2& tex, sdl::Color color) {
-			batch_.pushBack({getMatrix() * glm::vec4{position, 1}, tex, color});
+		void addVertex(const glm::vec3& position, const glm::vec2& tex, sdl::Color color, const glm::vec3& normal = {}) {
+			batch_.pushBack({getMatrix() * glm::vec4{position, 1}, tex, color, normal});
 		}
 
 		std::stack<glm::mat4> matrices_;

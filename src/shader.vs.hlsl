@@ -8,6 +8,7 @@ struct VSInput
     float3 position : TEXCOORD0;
     float2 tex      : TEXCOORD1;
     float4 color    : TEXCOORD2;
+    float3 normal   : TEXCOORD3;
 };
 
 struct VSOutput
@@ -15,7 +16,8 @@ struct VSOutput
     float4 position : SV_Position;
     float2 tex      : TEXCOORD0;
     float4 color    : COLOR0;
-    float3 worldPos : TEXCOORD1;
+    float3 normal   : TEXCOORD1;
+    float3 worldPos : TEXCOORD2;
 };
 
 VSOutput main(VSInput input)
@@ -25,5 +27,6 @@ VSOutput main(VSInput input)
     output.tex = input.tex;
     output.color = input.color;
     output.worldPos = input.position;
+    output.normal = input.normal;
     return output;
 }
