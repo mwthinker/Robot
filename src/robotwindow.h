@@ -5,6 +5,7 @@
 #include "sphereviewvar.h"
 #include "robotgraphics.h"
 #include "camera.h"
+#include "shader.h"
 
 #include <sdl/window.h>
 
@@ -28,7 +29,7 @@ namespace robot {
 		void drawFloor();
 
 		Graphic graphic_;
-		sdl::Shader shader_;
+		Shader shader_;
 		sdl::GpuGraphicsPipeline graphicsPipeline_;
 		sdl::GpuSampler sampler_;
 		sdl::GpuTexture texture_;
@@ -48,6 +49,11 @@ namespace robot {
 		std::array<float, 6> angles_{0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
 
 		Camera camera_{view_};
+
+		glm::vec3 lightPos_{0.0f, 0.f, 5.0f};
+		sdl::Color lightColor_ = sdl::color::White;
+		float lightRadius_ = 10.f;
+		float lightAmbientStrength_ = 0.2f;
 	};
 
 }

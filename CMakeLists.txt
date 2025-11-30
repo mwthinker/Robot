@@ -22,6 +22,10 @@ add_executable(Robot
 	src/robotwindow.h
 	src/sphereviewvar.h
 	src/sphereviewvar.cpp
+	src/shader.vs.h
+	src/shader.ps.h
+	src/shader.cpp
+	src/shader.h
 	
 	CMakePresets.json
 	vcpkg.json

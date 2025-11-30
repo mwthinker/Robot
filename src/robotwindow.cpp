@@ -105,7 +105,7 @@ namespace robot {
 		// describe the vertex buffers
 		SDL_GPUVertexBufferDescription vertexBufferDescriptions{
 			.slot = 0,
-			.pitch = sizeof(sdl::Vertex),
+			.pitch = sizeof(Vertex),
 			.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX
 		};
 
@@ -234,6 +234,16 @@ namespace robot {
 			ImGui::SliderFloat("Theta", &view_.theta, 0.01f, glm::pi<float>()/2);
 			ImGui::SliderFloat("Phi", &view_.phi, -glm::pi<float>(), glm::pi<float>());
 			ImGui::End();
+
+			// Light settings
+			ImGui::Begin("Light Settings");
+			ImGui::SliderFloat("Light Position", &lightPos_.z, 2.f, 10.f);
+			static ImVec4 color = lightColor_;
+			ImGui::ColorEdit3("Light Color", (float*)& color);
+			lightColor_ = sdl::Color{color.x, color.y, color.z, color.w};
+			ImGui::SliderFloat("Light Radius", &lightRadius_, 0.1f, 20.f);
+			ImGui::SliderFloat("Ambient Strength", &lightAmbientStrength_, 0.f, 1.f);
+			ImGui::End();
 		});
 	}
 
@@ -341,13 +351,13 @@ namespace robot {
 
 		// Compute the viewing parameters based on a fixed fov and viewing
 		// a canonical box centered at the origin
-
 		float nearDist = 0.5f * 0.1f / tan((kFovY / 2.f) * Pi / 180.f);
 		float farDist = nearDist + 100.f;
 		float aspect = (float) width / height;
 		auto projection = glm::perspective(glm::radians(kFovY), aspect, nearDist, farDist);
 
 		shader_.uploadProjectionMatrix(commandBuffer, projection);
+		shader_.uploadLightingData(commandBuffer, lightPos_, lightRadius_, lightColor_, lightAmbientStrength_);
 	}
 
 	void RobotWindow::drawFloor() {

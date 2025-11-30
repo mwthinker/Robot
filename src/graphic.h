@@ -1,8 +1,9 @@
 #ifndef ZOMBIE_GRAPHIC_H
 #define ZOMBIE_GRAPHIC_H
 
+#include "shader.h"
+
 #include <sdl/batch.h>
-#include <sdl/shader.h>
 #include <sdl/gpu.h>
 #include <sdl/color.h>
 #include <sdl/gpuutil.h>
@@ -66,7 +67,7 @@ namespace robot {
 				SDL_GPUBufferRegion vertexRegion{
 					.buffer = vertexBuffer,
 					.offset = 0,
-					.size = static_cast<Uint32>(vertices_.size() * sizeof(sdl::Vertex))
+					.size = static_cast<Uint32>(vertices_.size() * sizeof(Vertex))
 				};
 
 				SDL_UploadToGPUBuffer(
@@ -443,8 +444,8 @@ namespace robot {
 
 		std::stack<glm::mat4> matrices_;
 
-		sdl::Batch<sdl::Vertex> batch_;
-		GraphicBuffer<sdl::Vertex> graphicBuffer_;
+		sdl::Batch<Vertex> batch_;
+		GraphicBuffer<Vertex> graphicBuffer_;
 	};
 
 }
