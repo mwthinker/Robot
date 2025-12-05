@@ -65,20 +65,14 @@ namespace robot {
 		static_assert(sizeof(projection) % 16 == 0, "Uniform buffer size must be multiple of 16 bytes");
 	}
 
-	void Shader::uploadLightingData(SDL_GPUCommandBuffer* commandBuffer,
-		const glm::vec3& lightPos,
-		float lightRadius,
-		sdl::Color color,
-		float ambientStrength,
-		float shininess,
-		const glm::vec3& cameraPos) {
+	void Shader::uploadLightingData(SDL_GPUCommandBuffer* commandBuffer, const LightingData& lightingData) {
 
 		// Maps to b1 in fragment shader
 		LightDataPs lightData{
-			.lightPos = glm::vec4(lightPos, 1.0f),
-			.lightColor = color,
-			.params = glm::vec4(lightRadius, ambientStrength, shininess, 0.0f),
-			.cameraPos = glm::vec4(cameraPos, 1.0f)
+			.lightPos = glm::vec4(lightingData.lightPos, 1.0f),
+			.lightColor = lightingData.lightColor,
+			.params = glm::vec4(lightingData.lightRadius, lightingData.ambientStrength, lightingData.shininess, 0.0f),
+			.cameraPos = glm::vec4(lightingData.cameraPos, 1.0f)
 		};
 		SDL_PushGPUFragmentUniformData(commandBuffer, 0, &lightData, sizeof(lightData));
 	}

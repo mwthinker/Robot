@@ -21,18 +21,21 @@ namespace robot {
 	};
 	static_assert(sdl::VertexType<Vertex>, "Vertex must satisfy VertexType");
 
+	struct LightingData {
+		glm::vec3 lightPos;
+		float lightRadius;
+		sdl::Color lightColor;
+		float ambientStrength;
+		float shininess;
+		glm::vec3 cameraPos;
+	};
+
 	struct Shader {
 		void load(SDL_GPUDevice* gpuDevice);
 		
 		static void uploadProjectionMatrix(SDL_GPUCommandBuffer* commandBuffer, const glm::mat4& projection);
 
-		static void uploadLightingData(SDL_GPUCommandBuffer* commandBuffer,
-			const glm::vec3& lightPos,
-			float lightRadius,
-			sdl::Color color,
-			float ambientStrength,
-			float shininess,
-			const glm::vec3& cameraPos);
+		static void uploadLightingData(SDL_GPUCommandBuffer* commandBuffer, const LightingData& lightingData);
 
 		static constexpr std::array<SDL_GPUVertexAttribute, 4> attributes = {
 			// position maps to TEXCOORD0

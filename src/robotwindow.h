@@ -24,17 +24,14 @@ namespace robot {
 
 		void renderFrame(const sdl::DeltaTime& deltaTime, SDL_GPUTexture* swapchainTexture, SDL_GPUCommandBuffer* commandBuffer) override;
 
-		void reshape(SDL_GPUCommandBuffer* commandBuffer, SDL_GPURenderPass* renderPass, int width, int height);
+		void reshape(SDL_GPUCommandBuffer* commandBuffer, int width, int height);
 
 		void drawFloor();
 
 		void setupPipeline();
 
 		Graphic graphic_;
-		Shader shader_;
 		sdl::GpuGraphicsPipeline graphicsPipeline_;
-		sdl::GpuSampler sampler_;
-		sdl::GpuTexture texture_;
 		sdl::GpuTexture depthTexture_;
 		sdl::GpuTexture renderTexture_;
 		sdl::GpuTexture resolveTexture_;
@@ -53,11 +50,15 @@ namespace robot {
 		Camera camera_{view_};
 
 		bool displayLightBulb_ = true;
-		glm::vec3 lightPos_{0.0f, 0.f, 5.0f};
-		sdl::Color lightColor_ = sdl::color::White;
-		float lightRadius_ = 10.f;
-		float lightAmbientStrength_ = 0.2f;
-		float lightShininess_ = 64.f;
+
+		LightingData lightingData_{
+			.lightPos = glm::vec3{0.0f, 0.f, 5.0f},
+			.lightRadius = 10.f,
+			.lightColor = sdl::color::White,
+			.ambientStrength = 0.2f,
+			.shininess = 64.f,
+			.cameraPos = glm::vec3{0.0f, 0.f, 0.f}
+		};
 	};
 
 }

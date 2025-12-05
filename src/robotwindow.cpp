@@ -9,12 +9,6 @@ namespace robot {
 
 	namespace {
 
-		sdl::SdlSurface createSdlSurface(int w, int h, sdl::Color color) {
-			auto s = SDL_CreateSurface(w, h, SDL_PIXELFORMAT_RGBA32);
-			SDL_FillSurfaceRect(s, nullptr, color.toImU32());
-			return sdl::createSdlSurface(s);
-		}
-
 		sdl::GpuTexture createDepthTexture(SDL_GPUDevice* gpuDevice, int width, int height, SDL_GPUSampleCount sampleCount) {
 			SDL_PropertiesID props = SDL_CreateProperties();
 			// Only for D3D12 to ensure depth is cleared to 1.0f, ignored on other backends
@@ -37,8 +31,9 @@ namespace robot {
 			return texture;
 		}
 
-		SDL_GPUTextureCreateInfo createColorTextureInfo(int width, int height, SDL_GPUTextureFormat format, SDL_GPUSampleCount sampleCount) {
-			return SDL_GPUTextureCreateInfo{
+		sdl::GpuTexture createColorTexture(SDL_GPUDevice* gpuDevice, int width, int height, SDL_GPUSampleCount sampleCount) {
+			SDL_GPUTextureFormat format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+			SDL_GPUTextureCreateInfo textureCreateInfo{
 				.type = SDL_GPU_TEXTURETYPE_2D,
 				.format = format,
 				.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET,
@@ -48,11 +43,6 @@ namespace robot {
 				.num_levels = 1,
 				.sample_count = sampleCount
 			};
-		}
-
-		sdl::GpuTexture createColorTexture(SDL_GPUDevice* gpuDevice, int width, int height, SDL_GPUSampleCount sampleCount) {
-			SDL_GPUTextureFormat format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
-			SDL_GPUTextureCreateInfo textureCreateInfo = createColorTextureInfo(width, height, format, sampleCount);
 			
 			if (!SDL_GPUTextureSupportsSampleCount(gpuDevice, format, sampleCount)) {
 				// Fallback to no multisampling
@@ -95,92 +85,11 @@ namespace robot {
 	}
 
 	void RobotWindow::preLoop() {
-		shader_.load(gpuDevice_);
-
 		setupPipeline();
 	}
 
 	void RobotWindow::setupPipeline() {
-		// Check MSAA support first
-		if (!SDL_GPUTextureSupportsSampleCount(gpuDevice_, SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM, gpuSampleCount_)) {
-			gpuSampleCount_ = SDL_GPU_SAMPLECOUNT_1;
-		}
-
-		// describe the vertex buffers
-		SDL_GPUVertexBufferDescription vertexBufferDescriptions{
-			.slot = 0,
-			.pitch = sizeof(Vertex),
-			.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX
-		};
-
-		SDL_GPUColorTargetDescription colorTargetDescription{
-			.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
-			.blend_state = SDL_GPUColorTargetBlendState{
-				.src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
-				.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-				.color_blend_op = SDL_GPU_BLENDOP_ADD,
-				.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
-				.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-				.alpha_blend_op = SDL_GPU_BLENDOP_ADD,
-				.enable_blend = true
-			}
-		};
-
-		SDL_GPUDepthStencilState depthStencilState{
-			.compare_op = SDL_GPU_COMPAREOP_LESS,
-			.back_stencil_state = {
-				.fail_op = SDL_GPU_STENCILOP_KEEP,
-				.pass_op = SDL_GPU_STENCILOP_KEEP,
-				.depth_fail_op = SDL_GPU_STENCILOP_KEEP,
-				.compare_op = SDL_GPU_COMPAREOP_ALWAYS,
-			},
-			.front_stencil_state = {
-					.fail_op = SDL_GPU_STENCILOP_KEEP,
-					.pass_op = SDL_GPU_STENCILOP_KEEP,
-					.depth_fail_op = SDL_GPU_STENCILOP_KEEP,
-					.compare_op = SDL_GPU_COMPAREOP_ALWAYS,
-			},
-			.compare_mask = 0,
-			.write_mask = 0,
-			.enable_depth_test = true,
-			.enable_depth_write = true,
-			.enable_stencil_test = false
-		};
-
-		SDL_GPUGraphicsPipelineCreateInfo pipelineInfo{
-			.vertex_shader = shader_.vertexShader.get(),
-			.fragment_shader = shader_.fragmentShader.get(),
-			.vertex_input_state = SDL_GPUVertexInputState{
-				.vertex_buffer_descriptions = &vertexBufferDescriptions,
-				.num_vertex_buffers = 1,
-				.vertex_attributes = shader_.attributes.data(),
-				.num_vertex_attributes = (Uint32)shader_.attributes.size()
-		},
-			.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
-			.multisample_state = SDL_GPUMultisampleState{
-				.sample_count = gpuSampleCount_
-		},
-			.depth_stencil_state = depthStencilState,
-			.target_info = SDL_GPUGraphicsPipelineTargetInfo{
-				.color_target_descriptions = &colorTargetDescription,
-				.num_color_targets = 1,
-				.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D32_FLOAT,
-				.has_depth_stencil_target = true
-		}
-		};
-		graphicsPipeline_ = sdl::createGpuGraphicsPipeline(gpuDevice_, pipelineInfo);
-
-		auto transparentSurface = createSdlSurface(1, 1, sdl::color::White);
-		texture_ = sdl::uploadSurface(gpuDevice_, transparentSurface.get());
-
-		sampler_ = sdl::createGpuSampler(gpuDevice_, SDL_GPUSamplerCreateInfo{
-			.min_filter = SDL_GPU_FILTER_NEAREST,
-			.mag_filter = SDL_GPU_FILTER_NEAREST,
-			.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST,
-			.address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
-			.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
-			.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE
-		});
+		graphic_.preLoop(gpuDevice_, gpuSampleCount_);
 
 		int w, h;
 		SDL_GetWindowSize(window_, &w, &h);
@@ -243,13 +152,13 @@ namespace robot {
 			ImGui::Begin("Graphic Settings");
 			
 			ImGui::Checkbox("Display Light Bulb", &displayLightBulb_);
-			ImGui::SliderFloat("Light Position", &lightPos_.z, 2.f, 10.f);
-			static ImVec4 color = lightColor_;
+			ImGui::SliderFloat("Light Position", &lightingData_.lightPos.z, 2.f, 10.f);
+			static ImVec4 color = lightingData_.lightColor;
 			ImGui::ColorEdit3("Light Color", (float*)& color);
-			lightColor_ = sdl::Color{color.x, color.y, color.z, color.w};
-			ImGui::SliderFloat("Light Radius", &lightRadius_, 0.1f, 20.f);
-			ImGui::SliderFloat("Ambient Strength", &lightAmbientStrength_, 0.f, 1.f);
-			ImGui::SliderFloat("Shininess", &lightShininess_, 1.f, 128.f);
+			lightingData_.lightColor = sdl::Color{color.x, color.y, color.z, color.w};
+			ImGui::SliderFloat("Light Radius", &lightingData_.lightRadius, 0.1f, 20.f);
+			ImGui::SliderFloat("Ambient Strength", &lightingData_.ambientStrength, 0.f, 1.f);
+			ImGui::SliderFloat("Shininess", &lightingData_.shininess, 1.f, 128.f);
 
 			std::array items = {"SDL_GPU_SAMPLECOUNT_1", "SDL_GPU_SAMPLECOUNT_2", "SDL_GPU_SAMPLECOUNT_4", "SDL_GPU_SAMPLECOUNT_8"};
 			static int item = static_cast<int>(gpuSampleCount_);
@@ -286,11 +195,15 @@ namespace robot {
 		drawFloor();
 		if (displayLightBulb_) {
 			graphic_.loadIdentityMatrix();
-			graphic_.translate(lightPos_);
-			graphic_.addSolidSphere(0.1f, 10, 10, lightColor_);
+			graphic_.translate(lightingData_.lightPos);
+			graphic_.addSolidSphere(0.1f, 10, 10, lightingData_.lightColor);
 		}
-		
-		graphic_.uploadToGpu(gpuDevice_, commandBuffer);
+
+		int w, h;
+		SDL_GetWindowSize(window_, &w, &h);
+
+		graphic_.gpuCopyPass(gpuDevice_, commandBuffer);
+		reshape(commandBuffer, w, h);
 
 		SDL_GPUColorTargetInfo colorTargetInfo{
 			.texture = renderTexture_.get(),
@@ -304,26 +217,17 @@ namespace robot {
 			colorTargetInfo.resolve_texture = resolveTexture_.get();
 		}
 		SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(commandBuffer, &colorTargetInfo, 1, &depthTargetInfo);
-
-		int w, h;
-		SDL_GetWindowSize(window_, &w, &h);
-		reshape(commandBuffer, renderPass, w, h);
-
-		SDL_GPUTextureSamplerBinding samplerBinding{
-			.texture = texture_.get(),
-			.sampler = sampler_.get()
+		SDL_GPUViewport viewPort{
+			.x = 0,
+			.y = 0,
+			.w = static_cast<float>(w),
+			.h = static_cast<float>(h),
+			.min_depth = 0.f,
+			.max_depth = 1.f
 		};
-		
-		SDL_BindGPUGraphicsPipeline(renderPass, graphicsPipeline_.get());
-		graphic_.bindBuffers(renderPass);
+		SDL_SetGPUViewport(renderPass, &viewPort);
 
-		SDL_BindGPUFragmentSamplers(
-			renderPass,
-			0,
-			&samplerBinding,
-			1
-		);
-		graphic_.draw(renderPass);
+		graphic_.bindAndDraw(gpuDevice_, renderPass);
 
 		SDL_EndGPURenderPass(renderPass);
 
@@ -333,15 +237,15 @@ namespace robot {
 				.texture = blitSourceTexture,
 				.x = 0,
 				.y = 0,
-				.w = (Uint32) w,
-				.h = (Uint32) h
+				.w = static_cast<Uint32>(w),
+				.h = static_cast<Uint32>(h)
 			},
 			.destination = {
 				.texture = swapchainTexture,
 				.x = 0,
 				.y = 0,
-				.w = (Uint32) w,
-				.h = (Uint32) h
+				.w = static_cast<Uint32>(w),
+				.h = static_cast<Uint32>(h)
 			},
 			.load_op = SDL_GPU_LOADOP_DONT_CARE,
 			.filter = SDL_GPU_FILTER_LINEAR
@@ -350,33 +254,23 @@ namespace robot {
 		SDL_BlitGPUTexture(commandBuffer, &blitInfo);
 	}
 
-	void RobotWindow::reshape(SDL_GPUCommandBuffer* commandBuffer, SDL_GPURenderPass* renderPass, int width, int height) {
-		static const float kFovY = 40;
-		
-		SDL_GPUViewport viewPort{
-			.x = 0,
-			.y = 0,
-			.w = (float) width,
-			.h = (float) height,
-			.min_depth = 0.f,
-			.max_depth = 1.f
-		};
-		SDL_SetGPUViewport(renderPass, &viewPort);
+	void RobotWindow::reshape(SDL_GPUCommandBuffer* commandBuffer, int width, int height) {
+		static constexpr float kFovY = 40;
 
 		// Compute the viewing parameters based on a fixed fov and viewing
 		// a canonical box centered at the origin
-		float nearDist = 0.5f * 0.1f / tan((kFovY / 2.f) * Pi / 180.f);
-		float farDist = nearDist + 100.f;
-		float aspect = (float) width / height;
+		static const float nearDist = 0.5f * 0.1f / std::tan(glm::radians(kFovY) / 2.f);
+		static const float farDist = nearDist + 100.f;
+		const float aspect = static_cast<float>(width) / height;
 		auto projection = glm::perspective(glm::radians(kFovY), aspect, nearDist, farDist);
 
 		glm::vec3 center{0.0f, 0.0f, 0.7f};
 		glm::vec3 up{0.0f, 0.0f, 1.0f};
 		glm::vec3 eye = camera_.getEye();
 		glm::mat4 viewMatrix = glm::lookAt(eye, center, up);
-
-		shader_.uploadProjectionMatrix(commandBuffer, projection * viewMatrix);
-		shader_.uploadLightingData(commandBuffer, lightPos_, lightRadius_, lightColor_, lightAmbientStrength_, lightShininess_, eye);
+		lightingData_.cameraPos = eye;
+		graphic_.uploadLightingData(commandBuffer, lightingData_);
+		graphic_.uploadProjectionMatrix(commandBuffer, projection * viewMatrix);
 	}
 
 	void RobotWindow::drawFloor() {

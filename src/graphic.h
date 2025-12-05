@@ -7,6 +7,7 @@
 #include <sdl/gpu.h>
 #include <sdl/color.h>
 #include <sdl/gpuutil.h>
+#include <sdl/util.h>
 
 #include <SDL3/SDL_gpu.h>
 #include <glm/gtx/rotate_vector.hpp>
@@ -18,97 +19,89 @@
 
 namespace robot {
 
-	namespace {
-		constexpr float Pi = glm::pi<float>();
+	constexpr float Pi = glm::pi<float>();
+
+	inline sdl::SdlSurface createSdlSurface(int w, int h, sdl::Color color) {
+		auto s = SDL_CreateSurface(w, h, SDL_PIXELFORMAT_RGBA32);
+		SDL_FillSurfaceRect(s, nullptr, color.toImU32());
+		return sdl::createSdlSurface(s);
 	}
 
-	template <sdl::VertexType Vertex>
-	class GraphicBuffer {
+	// Can't be stored.
+	struct GpuData {
+		std::span<const Vertex> vertices;
+		std::span<const uint32_t> indices;
+		SDL_GPUBuffer* indexBuffer;
+		SDL_GPUBuffer* vertexBuffer;
+		SDL_GPUTransferBuffer* vertexTransferBuffer;
+		SDL_GPUTransferBuffer* indexTransferBuffer;
+		SDL_GPUGraphicsPipeline* pipeline;
+	};
+	
+	class TrianglesBuffer {
 	public:
-		void bindBuffers(SDL_GPURenderPass* renderPass) {
-			SDL_GPUBufferBinding vertexBinding{
-				.buffer = vertexBuffer_.get(),
-				.offset = 0
-			};
-			SDL_BindGPUVertexBuffers(
-				renderPass,
-				0,
-				&vertexBinding,
-				1
-			);
-
-			SDL_GPUBufferBinding indexBinding{
-				.buffer = indexBuffer_.get(),
-				.offset = 0
-			};
-			SDL_BindGPUIndexBuffer(
-				renderPass,
-				&indexBinding,
-				SDL_GPU_INDEXELEMENTSIZE_32BIT
-			);
-		}
-
-		void uploadToGpu(SDL_GPUDevice* gpuDevice, SDL_GPUCommandBuffer* commandBuffer, sdl::Batch<Vertex>& batch) {
-			auto indices_ = batch.indices();
-			auto vertices_ = batch.vertices();
-
+		GpuData prepareGpuData(SDL_GPUDevice* gpuDevice, SDL_GPUGraphicsPipeline* pipeline) {
+			auto indices_ = batch_.indices();
+			auto vertices_ = batch_.vertices();
 			SDL_GPUBuffer* indexBuffer = indexBuffer_.get(gpuDevice, SDL_GPU_BUFFERUSAGE_INDEX, indices_);
 			SDL_GPUBuffer* vertexBuffer = vertexBuffer_.get(gpuDevice, SDL_GPU_BUFFERUSAGE_VERTEX, vertices_);
-
 			SDL_GPUTransferBuffer* vertexTransferBuffer = vertexTransferBuffer_.get(gpuDevice, vertices_);
 			SDL_GPUTransferBuffer* indexTransferBuffer = indexTransferBuffer_.get(gpuDevice, indices_);
-
-			sdl::gpuCopyPass(commandBuffer, [&](SDL_GPUCopyPass* copyPass) {
-				SDL_GPUTransferBufferLocation vertexLocation{
-					.transfer_buffer = vertexTransferBuffer,
-					.offset = 0
-				};
-
-				SDL_GPUBufferRegion vertexRegion{
-					.buffer = vertexBuffer,
-					.offset = 0,
-					.size = static_cast<Uint32>(vertices_.size() * sizeof(Vertex))
-				};
-
-				SDL_UploadToGPUBuffer(
-					copyPass,
-					&vertexLocation,
-					&vertexRegion,
-					false);
-
-				SDL_GPUTransferBufferLocation indexLocation{
-					.transfer_buffer = indexTransferBuffer,
-					.offset = 0
-				};
-
-				SDL_GPUBufferRegion indexRegion{
-					.buffer = indexBuffer,
-					.offset = 0,
-					.size = static_cast<Uint32>(indices_.size() * sizeof(uint32_t))
-				};
-
-				SDL_UploadToGPUBuffer(copyPass,
-					&indexLocation,
-					&indexRegion,
-					false);
-			});
+			
+			return GpuData{
+				.vertices = vertices_,
+				.indices = indices_,
+				.indexBuffer = indexBuffer,
+				.vertexBuffer = vertexBuffer,
+				.vertexTransferBuffer = vertexTransferBuffer,
+				.indexTransferBuffer = indexTransferBuffer,
+				.pipeline = pipeline
+			};
 		}
 
-		void draw(SDL_GPURenderPass* renderPass, sdl::Batch<Vertex>& batch) {
-			SDL_DrawGPUIndexedPrimitives(
-				renderPass,
-				static_cast<Uint32>(batch.indices().size()),
-				1,
-				0,
-				0,
-				0
-			);
+		sdl::Batch<Vertex>& batch() {
+			return batch_;
 		}
 
+	private:
 		sdl::TransferBuffer vertexTransferBuffer_;
 		sdl::TransferBuffer indexTransferBuffer_;
 		sdl::Buffer vertexBuffer_;
 		sdl::Buffer indexBuffer_;
+		sdl::Batch<Vertex> batch_;
+	};
+
+	class LinesBuffer {
+	public:
+		GpuData prepareGpuData(SDL_GPUDevice* gpuDevice, SDL_GPUGraphicsPipeline* pipeline) {
+			auto indices_ = batch().indices();
+			auto vertices_ = batch().vertices();
+			SDL_GPUBuffer* indexBuffer = indexBuffer_.get(gpuDevice, SDL_GPU_BUFFERUSAGE_INDEX, indices_);
+			SDL_GPUBuffer* vertexBuffer = vertexBuffer_.get(gpuDevice, SDL_GPU_BUFFERUSAGE_VERTEX, vertices_);
+			SDL_GPUTransferBuffer* vertexTransferBuffer = vertexTransferBuffer_.get(gpuDevice, vertices_);
+			SDL_GPUTransferBuffer* indexTransferBuffer = indexTransferBuffer_.get(gpuDevice, indices_);
+
+			return GpuData{
+				.vertices = vertices_,
+				.indices = indices_,
+				.indexBuffer = indexBuffer,
+				.vertexBuffer = vertexBuffer,
+				.vertexTransferBuffer = vertexTransferBuffer,
+				.indexTransferBuffer = indexTransferBuffer,
+				.pipeline = pipeline
+			};
+		}
+
+		sdl::Batch<Vertex>& batch() {
+			return batch_;
+		}
+
+	private:
+		sdl::TransferBuffer vertexTransferBuffer_;
+		sdl::TransferBuffer indexTransferBuffer_;
+		sdl::Buffer vertexBuffer_;
+		sdl::Buffer indexBuffer_;
+		sdl::Batch<Vertex> batch_;
 	};
 
 	class Graphic {
@@ -117,6 +110,153 @@ namespace robot {
 
 		Graphic() {
 			loadIdentityMatrix();
+		}
+
+		void preLoop(SDL_GPUDevice* gpuDevice, SDL_GPUSampleCount gpuSampleCount) {
+			shader_.load(gpuDevice);
+			setupTrianglesPipeline(gpuDevice, SDL_GPU_SAMPLECOUNT_1);
+
+			auto transparentSurface = createSdlSurface(1, 1, sdl::color::White);
+			texture_ = sdl::uploadSurface(gpuDevice, transparentSurface.get());
+
+			sampler_ = sdl::createGpuSampler(gpuDevice, SDL_GPUSamplerCreateInfo{
+				.min_filter = SDL_GPU_FILTER_NEAREST,
+				.mag_filter = SDL_GPU_FILTER_NEAREST,
+				.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST,
+				.address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
+				.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
+				.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE
+			});
+		}
+
+		void setupLinesPipeline(SDL_GPUDevice* gpuDevice, SDL_GPUSampleCount gpuSampleCount) {
+			SDL_GPUVertexBufferDescription vertexBufferDescriptions{
+				.slot = 0,
+				.pitch = sizeof(Vertex),
+				.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX
+			};
+
+			SDL_GPUColorTargetDescription colorTargetDescription{
+				.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
+				.blend_state = SDL_GPUColorTargetBlendState{
+					.src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
+					.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+					.color_blend_op = SDL_GPU_BLENDOP_ADD,
+					.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
+					.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+					.alpha_blend_op = SDL_GPU_BLENDOP_ADD,
+					.enable_blend = true
+			}
+			};
+
+			SDL_GPUDepthStencilState depthStencilState{
+				.compare_op = SDL_GPU_COMPAREOP_LESS,
+				.back_stencil_state = {
+					.fail_op = SDL_GPU_STENCILOP_KEEP,
+					.pass_op = SDL_GPU_STENCILOP_KEEP,
+					.depth_fail_op = SDL_GPU_STENCILOP_KEEP,
+					.compare_op = SDL_GPU_COMPAREOP_ALWAYS,
+				},
+				.front_stencil_state = {
+						.fail_op = SDL_GPU_STENCILOP_KEEP,
+						.pass_op = SDL_GPU_STENCILOP_KEEP,
+						.depth_fail_op = SDL_GPU_STENCILOP_KEEP,
+						.compare_op = SDL_GPU_COMPAREOP_ALWAYS,
+				},
+				.compare_mask = 0,
+				.write_mask = 0,
+				.enable_depth_test = true,
+				.enable_depth_write = true,
+				.enable_stencil_test = false
+			};
+
+			SDL_GPUGraphicsPipelineCreateInfo pipelineInfo{
+				.vertex_shader = shader_.vertexShader.get(),
+				.fragment_shader = shader_.fragmentShader.get(),
+				.vertex_input_state = SDL_GPUVertexInputState{
+					.vertex_buffer_descriptions = &vertexBufferDescriptions,
+					.num_vertex_buffers = 1,
+					.vertex_attributes = shader_.attributes.data(),
+					.num_vertex_attributes = static_cast<Uint32>(shader_.attributes.size())
+				},
+				.primitive_type = SDL_GPU_PRIMITIVETYPE_LINELIST,
+				.multisample_state = SDL_GPUMultisampleState{
+						.sample_count = gpuSampleCount
+				},
+				.depth_stencil_state = depthStencilState,
+				.target_info = SDL_GPUGraphicsPipelineTargetInfo{
+					.color_target_descriptions = &colorTargetDescription,
+					.num_color_targets = 1,
+					.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D32_FLOAT,
+					.has_depth_stencil_target = true
+				}
+			};
+			linesPipeline_ = sdl::createGpuGraphicsPipeline(gpuDevice, pipelineInfo);
+		}
+
+		void setupTrianglesPipeline(SDL_GPUDevice* gpuDevice, SDL_GPUSampleCount gpuSampleCount) {
+			SDL_GPUVertexBufferDescription vertexBufferDescriptions{
+				.slot = 0,
+				.pitch = sizeof(Vertex),
+				.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX
+			};
+
+			SDL_GPUColorTargetDescription colorTargetDescription{
+				.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
+				.blend_state = SDL_GPUColorTargetBlendState{
+					.src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
+					.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+					.color_blend_op = SDL_GPU_BLENDOP_ADD,
+					.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,
+					.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+					.alpha_blend_op = SDL_GPU_BLENDOP_ADD,
+					.enable_blend = true
+				}
+			};
+
+			SDL_GPUDepthStencilState depthStencilState{
+				.compare_op = SDL_GPU_COMPAREOP_LESS,
+				.back_stencil_state = {
+					.fail_op = SDL_GPU_STENCILOP_KEEP,
+					.pass_op = SDL_GPU_STENCILOP_KEEP,
+					.depth_fail_op = SDL_GPU_STENCILOP_KEEP,
+					.compare_op = SDL_GPU_COMPAREOP_ALWAYS,
+				},
+				.front_stencil_state = {
+						.fail_op = SDL_GPU_STENCILOP_KEEP,
+						.pass_op = SDL_GPU_STENCILOP_KEEP,
+						.depth_fail_op = SDL_GPU_STENCILOP_KEEP,
+						.compare_op = SDL_GPU_COMPAREOP_ALWAYS,
+				},
+				.compare_mask = 0,
+				.write_mask = 0,
+				.enable_depth_test = true,
+				.enable_depth_write = true,
+				.enable_stencil_test = false
+			};
+
+			SDL_GPUGraphicsPipelineCreateInfo pipelineInfo{
+				.vertex_shader = shader_.vertexShader.get(),
+				.fragment_shader = shader_.fragmentShader.get(),
+				.vertex_input_state = SDL_GPUVertexInputState{
+					.vertex_buffer_descriptions = &vertexBufferDescriptions,
+					.num_vertex_buffers = 1,
+					.vertex_attributes = shader_.attributes.data(),
+					.num_vertex_attributes = static_cast<Uint32>(shader_.attributes.size())
+				},
+				.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
+				.multisample_state = SDL_GPUMultisampleState{
+					.sample_count = gpuSampleCount
+				},
+				.depth_stencil_state = depthStencilState,
+				.target_info = SDL_GPUGraphicsPipelineTargetInfo{
+					.color_target_descriptions = &colorTargetDescription,
+					.num_color_targets = 1,
+					.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D32_FLOAT,
+					.has_depth_stencil_target = true
+				}
+			};
+			trianglesPipeline_ = sdl::createGpuGraphicsPipeline(gpuDevice, pipelineInfo);
 		}
 
 		void pushMatrix() {
@@ -157,7 +297,7 @@ namespace robot {
 		}
 
 		void addSolidCube(float size, sdl::Color color) {
-			batch_.startBatch();
+			trianglesBuffer_.batch().startBatch();
 			
 			float halfSize = size / 2.0f;
 			
@@ -203,7 +343,7 @@ namespace robot {
 			addVertex(glm::vec3{halfSize, -halfSize, halfSize}, NoTexture, color, normalBottom);
 			addVertex(glm::vec3{-halfSize, -halfSize, halfSize}, NoTexture, color, normalBottom);
 
-			batch_.insertIndices({
+			trianglesBuffer_.batch().insertIndices({
 				0, 1, 2, 2, 3, 0,		// Back face
 				4, 5, 6, 6, 7, 4,		// Front face
 				8, 9, 10, 10, 11, 8,	// Left face
@@ -214,7 +354,7 @@ namespace robot {
 		}
 
 		void addSolidSphere(float radius, unsigned int slices, unsigned int stacks, sdl::Color color) {
-			batch_.startBatch();
+			trianglesBuffer_.batch().startBatch();
 
 			// Top vertex
 			glm::vec3 topPos{0.0f, radius, 0.0f};
@@ -245,7 +385,7 @@ namespace robot {
 
 			// Generate indices for top cap
 			for (unsigned int slice = 0; slice < slices; ++slice) {
-				batch_.insertIndices({
+				trianglesBuffer_.batch().insertIndices({
 					0, slice + 1, slice + 2
 				});
 			}
@@ -256,7 +396,7 @@ namespace robot {
 				unsigned int k2 = k1 + slices + 1;
 
 				for (unsigned int slice = 0; slice < slices; ++slice) {
-					batch_.insertIndices({
+					trianglesBuffer_.batch().insertIndices({
 						k1 + slice, k2 + slice, k2 + slice + 1,
 						k2 + slice + 1, k1 + slice + 1, k1 + slice
 					});
@@ -267,7 +407,7 @@ namespace robot {
 			unsigned int bottomVertex = 1 + (stacks - 1) * (slices + 1);
 			unsigned int lastStackStart = 1 + (stacks - 2) * (slices + 1);
 			for (unsigned int slice = 0; slice < slices; ++slice) {
-				batch_.insertIndices({
+				trianglesBuffer_.batch().insertIndices({
 					lastStackStart + slice, bottomVertex, lastStackStart + slice + 1
 				});
 			}
@@ -277,20 +417,21 @@ namespace robot {
 			glm::vec3 pos3{pos, 0.0f};
 			glm::vec3 normal = glm::vec3{0.0f, 0.0f, 1.0f};
 
-			batch_.startBatch();
+			trianglesBuffer_.batch().startBatch();
 			addVertex(pos3, NoTexture, color, normal);
 			addVertex({pos3.x + size.x, pos3.y, pos3.z}, NoTexture, color, normal);
 			addVertex({pos3.x + size.x, pos3.y + size.y, pos3.z}, NoTexture, color, normal);
 			addVertex({pos3.x, pos3.y + size.y, pos3.z}, NoTexture, color, normal);
 
-			batch_.insertIndices({
+			trianglesBuffer_.batch().insertIndices({
 				0, 1, 2,
 				2, 3, 0 
 			});
 		}
 
 		void clear() {
-			batch_.clear();
+			trianglesBuffer_.batch().clear();
+			linesBuffer_.batch().clear();
 		}
 
 		void addLine(const glm::vec3& p1, const glm::vec3& p2, float width, sdl::Color color) {
@@ -315,7 +456,7 @@ namespace robot {
 		}
 
 		void addCircle(const glm::vec2& center, float radius, sdl::Color color, unsigned int iterations = 30, float startAngle = 0) {
-			batch_.startBatch();
+			trianglesBuffer_.batch().startBatch();
 
 			// Add center vertex
 			addVertex(glm::vec3{center, 0.0f}, NoTexture, color);
@@ -329,14 +470,14 @@ namespace robot {
 
 			// Create triangles from center to perimeter
 			for (unsigned int i = 0; i < iterations; ++i) {
-				batch_.insertIndices({
+				trianglesBuffer_.batch().insertIndices({
 					0, i + 1, i + 2
 				});
 			}
 		}
 
 		void addCircleOutline(const glm::vec2& center, float radius, float width, sdl::Color color, unsigned int iterations = 30, float startAngle = 0) {
-			batch_.startBatch();
+			trianglesBuffer_.batch().startBatch();
 
 			float innerRadius = radius - width * 0.5f;
 			float outerRadius = radius + width * 0.5f;
@@ -356,7 +497,7 @@ namespace robot {
 			// Create quad strips between inner and outer circles
 			for (unsigned int i = 0; i < iterations; ++i) {
 				unsigned int baseIndex = i * 2;
-				batch_.insertIndices({
+				trianglesBuffer_.batch().insertIndices({
 					baseIndex, baseIndex + 1, baseIndex + 3,
 					baseIndex + 3, baseIndex + 2, baseIndex
 				});
@@ -368,16 +509,16 @@ namespace robot {
 		}
 
 		void addPixelLine(std::input_iterator auto begin, std::input_iterator auto end, sdl::Color color) {
-			batch_.startBatch();
+			linesBuffer_.batch().startBatch();
 
 			for (auto it = begin; it != end; ++it) {
-				addVertex(glm::vec3{*it, 0}, NoTexture, color);
+				addLinesVertex(glm::vec3{*it, 0}, NoTexture, color);
 			}
 
 			const auto size = std::distance(begin, end);
 			for (int i = 1; i < size; ++i) {
-				batch_.pushBackIndex(i - 1);
-				batch_.pushBackIndex(i);
+				linesBuffer_.batch().pushBackIndex(i - 1);
+				linesBuffer_.batch().pushBackIndex(i);
 			}
 		}
 
@@ -386,18 +527,18 @@ namespace robot {
 		}
 
 		void addPolygon(std::input_iterator auto begin, std::input_iterator auto end, sdl::Color color) {
-			batch_.startBatch();
+			trianglesBuffer_.batch().startBatch();
 			for (auto it = begin; it != end; ++it) {
 				addVertex(glm::vec3{*it, 0.f}, NoTexture, color);
 			}
 			const auto size = std::distance(begin, end);
 			for (unsigned int i = 1; i < size - 1; ++i) {
-				batch_.insertIndices({0, i, i + 1});
+				trianglesBuffer_.batch().insertIndices({0, i, i + 1});
 			}
 		}
 
 		void addCylinder(float baseRadius, float topRadius, float height, unsigned int slices, unsigned int stacks, sdl::Color color) {
-			batch_.startBatch();
+			trianglesBuffer_.batch().startBatch();
 
 			// Generate vertices for side faces
 			for (unsigned int stack = 0; stack <= stacks; ++stack) {
@@ -411,7 +552,7 @@ namespace robot {
 					float z = stackHeight;
 
 					// Normal perpendicular to cylinder surface (radial direction in XY plane)
-					glm::vec3 normalDir = glm::normalize(glm::vec3{std::cos(angle), std::sin(angle), 0.0f});
+					glm::vec3 normalDir{std::cos(angle), std::sin(angle), 0.0f};
 					addVertex(glm::vec3{x, y, z}, NoTexture, color, normalDir);
 				}
 			}
@@ -422,7 +563,7 @@ namespace robot {
 					unsigned int current = stack * (slices + 1) + slice;
 					unsigned int next = current + slices + 1;
 
-					batch_.insertIndices({
+					trianglesBuffer_.batch().insertIndices({
 						current, next, next + 1,
 						next + 1, current + 1, current
 					});
@@ -443,7 +584,7 @@ namespace robot {
 
 			// Bottom cap indices
 			for (unsigned int slice = 0; slice < slices; ++slice) {
-				batch_.insertIndices({
+				trianglesBuffer_.batch().insertIndices({
 					vertexOffset, vertexOffset + slice + 1, vertexOffset + slice + 2
 				});
 			}
@@ -462,7 +603,7 @@ namespace robot {
 
 			// Top cap indices - reversed winding order from bottom
 			for (unsigned int slice = 0; slice < slices; ++slice) {
-				batch_.insertIndices({
+				trianglesBuffer_.batch().insertIndices({
 					vertexOffset, vertexOffset + slice + 2, vertexOffset + slice + 1
 				});
 			}
@@ -472,27 +613,130 @@ namespace robot {
 			addRectangle(point - glm::vec2{size * 0.5f}, glm::vec2{size}, color);
 		}
 
-		void bindBuffers(SDL_GPURenderPass* renderPass) {
-			graphicBuffer_.bindBuffers(renderPass);
+		void bindAndDraw(SDL_GPUDevice* gpuDevice, SDL_GPURenderPass* renderPass) {
+			auto& data = gpuDatas_.emplace_back(trianglesBuffer_.prepareGpuData(gpuDevice, trianglesPipeline_.get()));
+
+			SDL_GPUTextureSamplerBinding samplerBinding{
+				.texture = texture_.get(),
+				.sampler = sampler_.get()
+			};
+
+			SDL_BindGPUGraphicsPipeline(renderPass, trianglesPipeline_.get());
+			
+			SDL_GPUBufferBinding vertexBinding{
+				.buffer = data.vertexBuffer,
+				.offset = 0
+			};
+			SDL_BindGPUVertexBuffers(
+				renderPass,
+				0,
+				&vertexBinding,
+				1
+			);
+
+			SDL_GPUBufferBinding indexBinding{
+				.buffer = data.indexBuffer,
+				.offset = 0
+			};
+			SDL_BindGPUIndexBuffer(
+				renderPass,
+				&indexBinding,
+				SDL_GPU_INDEXELEMENTSIZE_32BIT
+			);
+
+			SDL_BindGPUFragmentSamplers(
+				renderPass,
+				0,
+				&samplerBinding,
+				1
+			);
+			
+			SDL_DrawGPUIndexedPrimitives(
+				renderPass,
+				static_cast<Uint32>(data.indices.size()),
+				1,
+				0,
+				0,
+				0
+			);
 		}
 
-		void uploadToGpu(SDL_GPUDevice* gpuDevice, SDL_GPUCommandBuffer* commandBuffer) {
-			graphicBuffer_.uploadToGpu(gpuDevice, commandBuffer, batch_);
+		void gpuCopyPass(SDL_GPUDevice* gpuDevice, SDL_GPUCommandBuffer* commandBuffer) {
+			SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
+			for (const auto& gpuData : gpuDatas_) {
+				SDL_GPUTransferBufferLocation vertexLocation{
+					.transfer_buffer = gpuData.vertexTransferBuffer,
+					.offset = 0
+				};
+				SDL_GPUBufferRegion vertexRegion{
+					.buffer = gpuData.vertexBuffer,
+					.offset = 0,
+					.size = static_cast<Uint32>(gpuData.vertices.size() * sizeof(Vertex))
+				};
+				SDL_UploadToGPUBuffer(
+					copyPass,
+					&vertexLocation,
+					&vertexRegion,
+					false
+				);
+				SDL_GPUTransferBufferLocation indexLocation{
+					.transfer_buffer = gpuData.indexTransferBuffer,
+					.offset = 0
+				};
+				SDL_GPUBufferRegion indexRegion{
+					.buffer = gpuData.indexBuffer,
+					.offset = 0,
+					.size = static_cast<Uint32>(gpuData.indices.size() * sizeof(uint32_t))
+				};
+				SDL_UploadToGPUBuffer(copyPass,
+					&indexLocation,
+					&indexRegion,
+					false
+				);
+			}
+			SDL_EndGPUCopyPass(copyPass);
+			gpuDatas_.clear();
 		}
 
-		void draw(SDL_GPURenderPass* renderPass) {
-			graphicBuffer_.draw(renderPass, batch_);
+		void uploadProjectionMatrix(SDL_GPUCommandBuffer* commandBuffer, const glm::mat4& projection) {
+			shader_.uploadProjectionMatrix(commandBuffer, projection);
+		}
+
+		void uploadLightingData(SDL_GPUCommandBuffer* commandBuffer, const LightingData& lightingData) {
+			shader_.uploadLightingData(commandBuffer, lightingData);
 		}
 
 	private:
 		void addVertex(const glm::vec3& position, const glm::vec2& tex, sdl::Color color, const glm::vec3& normal = {}) {
-			batch_.pushBack({getMatrix() * glm::vec4{position, 1}, tex, color, normal});
+			trianglesBuffer_.batch().pushBack(
+				Vertex{
+					getMatrix() * glm::vec4{position, 1},
+					tex,
+					color,
+					glm::vec3{getMatrix() * glm::vec4{normal, 0.f}}
+				}
+			);
 		}
 
+		void addLinesVertex(const glm::vec3& position, const glm::vec2& tex, sdl::Color color) {
+			linesBuffer_.batch().pushBack({
+				getMatrix() * glm::vec4{position, 1},
+				tex,
+				color
+			});
+		}
+
+		Shader shader_;
+		sdl::GpuGraphicsPipeline trianglesPipeline_;
+		sdl::GpuGraphicsPipeline linesPipeline_;
 		std::stack<glm::mat4> matrices_;
 
-		sdl::Batch<Vertex> batch_;
-		GraphicBuffer<Vertex> graphicBuffer_;
+		TrianglesBuffer trianglesBuffer_;
+		LinesBuffer linesBuffer_;
+		std::vector<GpuData> gpuDatas_;
+
+		sdl::GpuSampler sampler_;
+		sdl::GpuTexture texture_;
 	};
 
 }
