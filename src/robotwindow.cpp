@@ -14,7 +14,7 @@ namespace robot {
 			// Only for D3D12 to ensure depth is cleared to 1.0f, ignored on other backends
 			SDL_SetFloatProperty(props, SDL_PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_DEPTH_FLOAT, 1.0f);
 
-			SDL_GPUTextureCreateInfo info{
+			auto texture = sdl::createGpuTexture(gpuDevice, SDL_GPUTextureCreateInfo{
 				.type = SDL_GPU_TEXTURETYPE_2D,
 				.format = SDL_GPU_TEXTUREFORMAT_D32_FLOAT,
 				.usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET,
@@ -24,9 +24,7 @@ namespace robot {
 				.num_levels = 1,
 				.sample_count = sampleCount,
 				.props = props
-			};
-
-			auto texture = sdl::createGpuTexture(gpuDevice, info);
+			});
 			SDL_DestroyProperties(props);
 			return texture;
 		}
@@ -53,14 +51,11 @@ namespace robot {
 				textureCreateInfo.usage |= SDL_GPU_TEXTUREUSAGE_SAMPLER;
 			}
 			
-			return sdl::createGpuTexture(
-				gpuDevice,
-				textureCreateInfo
-			);
+			return sdl::createGpuTexture(gpuDevice, textureCreateInfo);
 		}
 
 		sdl::GpuTexture createResolveTexture(SDL_GPUDevice* gpuDevice, int width, int height) {
-			SDL_GPUTextureCreateInfo textureCreateInfo = {
+			return sdl::createGpuTexture(gpuDevice, SDL_GPUTextureCreateInfo{
 				.type = SDL_GPU_TEXTURETYPE_2D,
 				.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
 				.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER,
@@ -68,17 +63,13 @@ namespace robot {
 				.height = static_cast<Uint32>(height),
 				.layer_count_or_depth = 1,
 				.num_levels = 1
-			};
-
-			return sdl::createGpuTexture(
-				gpuDevice,
-				textureCreateInfo
-			);
+			});
 		}
+
 	}
 
 	RobotWindow::RobotWindow() {
-		setSize(800, 800);
+		setSize(1024, 1024);
 		setTitle("Robot");
 		setShowDemoWindow(false);
 		setShowColorWindow(false);
@@ -117,9 +108,13 @@ namespace robot {
 			ImGui::Text("Use PageUp/PageDown to zoom in/out");
 			ImGui::Text("Use Q/A, W/S, E/D, R/F, T/G, Y/H to control joint angles");
 
+			static std::array<char, 64> buffer;
+
 			for (size_t i = 0; i < angles_.size(); ++i) {
+				char label[16];
+				std::snprintf(label, sizeof(label), "Joint %d", (int) i + 1);
 				ImGui::SliderFloat(
-					fmt::format("Joint {}", i + 1).c_str(),
+					label,
 					&angles_[i],
 					-180.f,
 					180.f
@@ -154,8 +149,10 @@ namespace robot {
 			static int light = 0;
 			static ImVec4 color = !lightingData_.lights.empty() ? lightingData_.lights[light].color :sdl::color::Transparent;
 			for (int i = 0; i < lightingData_.lights.size(); ++i) {
+				char lightLabel[16];
+				std::snprintf(lightLabel, sizeof(lightLabel), "Light %d", (int) i + 1);
 				ImGui::PushID(i);
-				if (ImGui::RadioButton("Light", &light, i)) {
+				if (ImGui::RadioButton(lightLabel, &light, i)) {
 					color = lightingData_.lights[light].color;
 				}
 				ImGui::PopID();
@@ -163,7 +160,7 @@ namespace robot {
 					ImGui::SameLine();
 				}
 			}
-			ImGui::SeparatorText("Lights");
+			ImGui::SeparatorText("Light");
 			if (light < lightingData_.lights.size()) {
 				ImGui::Checkbox("Display Light Bulb", &lightingData_.lights[light].enabled);
 				ImGui::SliderFloat3("Position", &lightingData_.lights[light].position.x, -10.f, 10.f);

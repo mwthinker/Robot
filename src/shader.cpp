@@ -11,7 +11,7 @@ namespace robot {
 		struct alignas(16) LightPs {
 			glm::vec4 position;	// xyz + padding
 			glm::vec4 color;	// rgba
-			glm::vec4 params;	// x = radius, y = ambientStrength, z = shininess + padding
+			glm::vec4 params;	// x = radius, y = ambientStrength, z = shininess,
 		};
 
 		struct alignas(16) LightDataPs {
@@ -23,7 +23,6 @@ namespace robot {
 
 	static_assert(sizeof(LightPs) == 48, "LightPs size mismatch");
 	static_assert(sizeof(LightDataPs) == 224, "LightDataPs size mismatch");
-	//static_assert(sizeof(sdl::Color) == 16, "Color size must be 16 bytes (4 floats)");
 
 	void Shader::load(SDL_GPUDevice* gpuDevice) {
 		SDL_GPUShaderCreateInfo vxCreateInfo{

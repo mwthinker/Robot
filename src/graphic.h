@@ -114,7 +114,7 @@ namespace robot {
 
 		void preLoop(SDL_GPUDevice* gpuDevice, SDL_GPUSampleCount gpuSampleCount) {
 			shader_.load(gpuDevice);
-			setupTrianglesPipeline(gpuDevice, SDL_GPU_SAMPLECOUNT_1);
+			setupTrianglesPipeline(gpuDevice, gpuSampleCount);
 
 			auto transparentSurface = createSdlSurface(1, 1, sdl::color::White);
 			texture_ = sdl::uploadSurface(gpuDevice, transparentSurface.get());
