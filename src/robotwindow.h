@@ -49,15 +49,42 @@ namespace robot {
 
 		Camera camera_{view_};
 
-		bool displayLightBulb_ = true;
-
 		LightingData lightingData_{
-			.lightPos = glm::vec3{0.0f, 0.f, 5.0f},
-			.lightRadius = 10.f,
-			.lightColor = sdl::color::White,
-			.ambientStrength = 0.2f,
-			.shininess = 64.f,
-			.cameraPos = glm::vec3{0.0f, 0.f, 0.f}
+			.cameraPos = glm::vec3{0.0f, 0.f, 0.f},
+			.lights = {
+				Light{
+					.position = glm::vec3{-5.f, -5.f, 5.0f},
+					.color = sdl::color::White,
+					.radius = 13.f,
+					.ambientStrength = 0.1f,
+					.shininess = 30.f,
+					.enabled = true
+				},
+				Light{
+					.position = glm::vec3{-5.f, 5.f, 5.0f},
+					.color = sdl::color::White,
+					.radius = 13.f,
+					.ambientStrength = 0.1f,
+					.shininess = 30.f,
+					.enabled = true
+				},
+				Light{
+					.position = glm::vec3{5.f, -5.f, 5.0f},
+					.color = sdl::color::White,
+					.radius = 13.f,
+					.ambientStrength = 0.1f,
+					.shininess = 30.f,
+					.enabled = true
+				},
+				Light{
+					.position = glm::vec3{5.f, 5.f, 5.0f},
+					.color = sdl::color::White,
+					.radius = 13.f,
+					.ambientStrength = 0.1f,
+					.shininess = 30.f,
+					.enabled = true
+				}
+			}
 		};
 	};
 

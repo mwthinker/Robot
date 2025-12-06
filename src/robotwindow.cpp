@@ -151,15 +151,30 @@ namespace robot {
 			// Graphic settings
 			ImGui::Begin("Graphic Settings");
 			
-			ImGui::Checkbox("Display Light Bulb", &displayLightBulb_);
-			ImGui::SliderFloat("Light Position", &lightingData_.lightPos.z, 2.f, 10.f);
-			static ImVec4 color = lightingData_.lightColor;
-			ImGui::ColorEdit3("Light Color", (float*)& color);
-			lightingData_.lightColor = sdl::Color{color.x, color.y, color.z, color.w};
-			ImGui::SliderFloat("Light Radius", &lightingData_.lightRadius, 0.1f, 20.f);
-			ImGui::SliderFloat("Ambient Strength", &lightingData_.ambientStrength, 0.f, 1.f);
-			ImGui::SliderFloat("Shininess", &lightingData_.shininess, 1.f, 128.f);
+			static int light = 0;
+			static ImVec4 color = !lightingData_.lights.empty() ? lightingData_.lights[light].color :sdl::color::Transparent;
+			for (int i = 0; i < lightingData_.lights.size(); ++i) {
+				ImGui::PushID(i);
+				if (ImGui::RadioButton("Light", &light, i)) {
+					color = lightingData_.lights[light].color;
+				}
+				ImGui::PopID();
+				if (i < lightingData_.lights.size() - 1) {
+					ImGui::SameLine();
+				}
+			}
+			ImGui::SeparatorText("Lights");
+			if (light < lightingData_.lights.size()) {
+				ImGui::Checkbox("Display Light Bulb", &lightingData_.lights[light].enabled);
+				ImGui::SliderFloat3("Position", &lightingData_.lights[light].position.x, -10.f, 10.f);
+				ImGui::ColorEdit3("Color", (float*)& color);
+				lightingData_.lights[light].color = sdl::Color{color.x, color.y, color.z, color.w};
+				ImGui::SliderFloat("Radius", &lightingData_.lights[light].radius, 0.1f, 20.f);
+				ImGui::SliderFloat("Ambient Strength", &lightingData_.lights[light].ambientStrength, 0.f, 1.f);
+				ImGui::SliderFloat("Shininess", &lightingData_.lights[light].shininess, 1.f, 128.f);
+			}
 
+			ImGui::SeparatorText("Anti-Aliasing");
 			std::array items = {"SDL_GPU_SAMPLECOUNT_1", "SDL_GPU_SAMPLECOUNT_2", "SDL_GPU_SAMPLECOUNT_4", "SDL_GPU_SAMPLECOUNT_8"};
 			static int item = static_cast<int>(gpuSampleCount_);
 			if (ImGui::Combo("MSAA Sample Count", &item, items.data(), static_cast<int>(items.size()))) {
@@ -169,6 +184,7 @@ namespace robot {
 			
 			ImGui::End();
 		});
+
 	}
 
 	void RobotWindow::renderFrame(const sdl::DeltaTime& deltaTime, SDL_GPUTexture* swapchainTexture, SDL_GPUCommandBuffer* commandBuffer) {
@@ -193,10 +209,12 @@ namespace robot {
 
 		robot_.draw(graphic_, anglesInRad_);
 		drawFloor();
-		if (displayLightBulb_) {
-			graphic_.loadIdentityMatrix();
-			graphic_.translate(lightingData_.lightPos);
-			graphic_.addSolidSphere(0.1f, 10, 10, lightingData_.lightColor);
+		for (auto& light : lightingData_.lights) {
+			if (!light.enabled) {
+				graphic_.loadIdentityMatrix();
+				graphic_.translate(light.position);
+				graphic_.addSolidSphere(0.1f, 10, 10, light.color);
+			}
 		}
 
 		int w, h;

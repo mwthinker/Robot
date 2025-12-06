@@ -21,13 +21,18 @@ namespace robot {
 	};
 	static_assert(sdl::VertexType<Vertex>, "Vertex must satisfy VertexType");
 
-	struct LightingData {
-		glm::vec3 lightPos;
-		float lightRadius;
-		sdl::Color lightColor;
+	struct Light {
+		glm::vec3 position;
+		sdl::Color color;
+		float radius;
 		float ambientStrength;
 		float shininess;
+		bool enabled = true;
+	};
+
+	struct LightingData {
 		glm::vec3 cameraPos;
+		std::vector<Light> lights;
 	};
 
 	struct Shader {
