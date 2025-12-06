@@ -151,11 +151,9 @@ namespace robot {
 			for (int i = 0; i < lightingData_.lights.size(); ++i) {
 				char lightLabel[16];
 				std::snprintf(lightLabel, sizeof(lightLabel), "Light %d", (int) i + 1);
-				ImGui::PushID(i);
 				if (ImGui::RadioButton(lightLabel, &light, i)) {
 					color = lightingData_.lights[light].color;
 				}
-				ImGui::PopID();
 				if (i < lightingData_.lights.size() - 1) {
 					ImGui::SameLine();
 				}
@@ -207,10 +205,10 @@ namespace robot {
 		robot_.draw(graphic_, anglesInRad_);
 		drawFloor();
 		for (auto& light : lightingData_.lights) {
-			if (!light.enabled) {
+			if (light.enabled) {
 				graphic_.loadIdentityMatrix();
 				graphic_.translate(light.position);
-				graphic_.addSolidSphere(0.1f, 10, 10, light.color);
+				graphic_.addSolidSphere(0.1f, 10, 10, light.color, DrawMode::NoLight);
 			}
 		}
 

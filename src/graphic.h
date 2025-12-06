@@ -37,9 +37,15 @@ namespace robot {
 		SDL_GPUTransferBuffer* indexTransferBuffer;
 		SDL_GPUGraphicsPipeline* pipeline;
 	};
+
+	enum class DrawMode {
+		Light,
+		NoLight
+	};
 	
 	class TrianglesBuffer {
 	public:
+
 		GpuData prepareGpuData(SDL_GPUDevice* gpuDevice, SDL_GPUGraphicsPipeline* pipeline) {
 			auto indices_ = batch_.indices();
 			auto vertices_ = batch_.vertices();
@@ -353,13 +359,13 @@ namespace robot {
 			});
 		}
 
-		void addSolidSphere(float radius, unsigned int slices, unsigned int stacks, sdl::Color color) {
+		void addSolidSphere(float radius, unsigned int slices, unsigned int stacks, sdl::Color color, DrawMode drawMode = DrawMode::Light) {
 			trianglesBuffer_.batch().startBatch();
 
 			// Top vertex
 			glm::vec3 topPos{0.0f, radius, 0.0f};
 			glm::vec4 topNormal{0.0f, 1.0f, 0.0f, 0.0f};
-			addVertex(topPos, NoTexture, color, topNormal);
+			addVertex(topPos, NoTexture, color, topNormal, drawMode);
 
 			// Generate vertices for each stack
 			for (unsigned int stack = 1; stack < stacks; ++stack) {
@@ -374,14 +380,14 @@ namespace robot {
 
 					glm::vec3 pos{x, y, z};
 					glm::vec4 normal{glm::normalize(glm::vec3{x, y, z}), 0.0f};
-					addVertex(pos, NoTexture, color, normal);
+					addVertex(pos, NoTexture, color, normal, drawMode);
 				}
 			}
 
 			// Bottom vertex
 			glm::vec3 bottomPos{0.0f, -radius, 0.0f};
 			glm::vec4 bottomNormal{0.0f, -1.0f, 0.0f, 0.0f};
-			addVertex(bottomPos, NoTexture, color, bottomNormal);
+			addVertex(bottomPos, NoTexture, color, bottomNormal, drawMode);
 
 			// Generate indices for top cap
 			for (unsigned int slice = 0; slice < slices; ++slice) {
@@ -707,11 +713,11 @@ namespace robot {
 		}
 
 	private:
-		void addVertex(const glm::vec3& position, const glm::vec2& tex, sdl::Color color, const glm::vec3& normal = {}) {
+		void addVertex(const glm::vec3& position, const glm::vec2& tex, sdl::Color color, const glm::vec3& normal = {}, DrawMode drawMode = DrawMode::Light) {
 			trianglesBuffer_.batch().pushBack(
 				Vertex{
 					getMatrix() * glm::vec4{position, 1},
-					tex,
+					DrawMode::NoLight == drawMode ? glm::vec2{-2.f, -2.f} : tex,
 					color,
 					glm::vec3{getMatrix() * glm::vec4{normal, 0.f}}
 				}

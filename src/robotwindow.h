@@ -55,7 +55,7 @@ namespace robot {
 				Light{
 					.position = glm::vec3{-5.f, -5.f, 5.0f},
 					.color = sdl::color::White,
-					.radius = 13.f,
+					.radius = 11.f,
 					.ambientStrength = 0.1f,
 					.shininess = 30.f,
 					.enabled = true
@@ -63,7 +63,7 @@ namespace robot {
 				Light{
 					.position = glm::vec3{-5.f, 5.f, 5.0f},
 					.color = sdl::color::White,
-					.radius = 13.f,
+					.radius = 11.f,
 					.ambientStrength = 0.1f,
 					.shininess = 30.f,
 					.enabled = true
@@ -71,7 +71,7 @@ namespace robot {
 				Light{
 					.position = glm::vec3{5.f, -5.f, 5.0f},
 					.color = sdl::color::White,
-					.radius = 13.f,
+					.radius = 11.f,
 					.ambientStrength = 0.1f,
 					.shininess = 30.f,
 					.enabled = true
@@ -79,7 +79,7 @@ namespace robot {
 				Light{
 					.position = glm::vec3{5.f, 5.f, 5.0f},
 					.color = sdl::color::White,
-					.radius = 13.f,
+					.radius = 11.f,
 					.ambientStrength = 0.1f,
 					.shininess = 30.f,
 					.enabled = true

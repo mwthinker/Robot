@@ -65,6 +65,12 @@ float4 main(VSOutput input) : SV_Target
         ? Texture.Sample(Sampler, input.tex) * input.color
         : input.color;
 
+    // Skip lighting if tex coordinates indicate no lighting needed
+    if (input.tex.x < -1.5 || input.tex.y < -1.5)
+    {
+        return baseColor;
+    }
+
     float3 lighting = accumulateLighting(input);
     float3 litColor = baseColor.rgb * lighting;
 
