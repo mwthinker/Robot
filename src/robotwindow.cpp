@@ -81,6 +81,7 @@ namespace robot {
 
 	void RobotWindow::setupPipeline() {
 		graphic_.preLoop(gpuDevice_, gpuSampleCount_);
+		robot_.setWorkspace(-100, -100, -100, 100, 100, 100, glm::mat4{1});
 
 		int w, h;
 		SDL_GetWindowSize(window_, &w, &h);
@@ -201,8 +202,10 @@ namespace robot {
 		for (size_t i = 0; i < angles_.size(); ++i) {
 			anglesInRad_[i] = glm::radians(angles_[i]);
 		}
+		int w, h;
+		SDL_GetWindowSize(window_, &w, &h);
 
-		robot_.draw(graphic_, anglesInRad_);
+		robot_.draw(graphic_, anglesInRad_, w, h);
 		drawFloor();
 		for (auto& light : lightingData_.lights) {
 			if (light.enabled) {
@@ -211,9 +214,12 @@ namespace robot {
 				graphic_.addSolidSphere(0.1f, 10, 10, light.color, DrawMode::NoLight);
 			}
 		}
+		graphic_.loadIdentityMatrix();
 
-		int w, h;
-		SDL_GetWindowSize(window_, &w, &h);
+		robot_.drawWorkspace(graphic_, w, h);
+		//graphic_.addLine({0.f, 0.f, 0.f}, {0.f, 0.f, 3.f}, 3.f, sdl::color::Red, w, h);
+		//graphic_.addLine({1.f, 0.f, 0.f}, {1.f, 0.f, 3.f}, 1.f, sdl::color::Red, w, h);
+		//graphic_.addLine({0.f, 0.f, 0.5f}, {1.f, 0.f, 0.5f}, 1.f, sdl::color::Red, w, h);
 
 		graphic_.gpuCopyPass(gpuDevice_, commandBuffer);
 		reshape(commandBuffer, w, h);
@@ -230,6 +236,7 @@ namespace robot {
 			colorTargetInfo.resolve_texture = resolveTexture_.get();
 		}
 		SDL_GPURenderPass* renderPass = SDL_BeginGPURenderPass(commandBuffer, &colorTargetInfo, 1, &depthTargetInfo);
+		
 		SDL_GPUViewport viewPort{
 			.x = 0,
 			.y = 0,
@@ -283,7 +290,7 @@ namespace robot {
 		glm::mat4 viewMatrix = glm::lookAt(eye, center, up);
 		lightingData_.cameraPos = eye;
 		graphic_.uploadLightingData(commandBuffer, lightingData_);
-		graphic_.uploadProjectionMatrix(commandBuffer, projection * viewMatrix);
+		graphic_.uploadProjectionMatrix(commandBuffer, projection, viewMatrix);
 	}
 
 	void RobotWindow::drawFloor() {

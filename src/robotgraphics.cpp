@@ -46,7 +46,7 @@ namespace robot {
 		};
 	}
 
-	void RobotGraphics::draw(Graphic& graphic, const std::array<float, 6>& angles) {
+	void RobotGraphics::draw(Graphic& graphic, const std::array<float, 6>& angles, int viewportWidth, int viewportHeight) {
 		auto thetas = convertAngles(angles);
 
 		glm::mat4 h1 = getH(thetas[0], 0);
@@ -103,73 +103,62 @@ namespace robot {
 		graphic.popMatrix();
 
 		// Draws the TCP frame.
-		drawFrame(h, 0.2f);
+		drawFrame(graphic, h, 0.2f, viewportWidth, viewportHeight);
 
 		// Draws base frame.
-		drawFrame(
+		drawFrame(graphic,
 			glm::mat4{
 				1, 0, 0, 0,
 				0, 1, 0, 0,
 				0, 0, 1, 0.005f,
 				0, 0, 0, 1
 			}, 
-			0.4f
+			0.4f,
+			viewportWidth, viewportHeight
 		);
 	}
 
-	void RobotGraphics::drawFrame(const glm::mat4& h, float size) const {
-		/*
-		glLineWidth(1.8f);
+	void RobotGraphics::drawFrame(Graphic& graphic, const glm::mat4& h, float size, int viewportWidth, int viewportHeight) const {
+		float pixelSize = 1.8f;
 
 		// Draw the x-axis in red.
-		glColor3f(1, 0, 0);
-		glBegin(GL_LINES);
-		glVertex3d(h[0][3], h[1][3], h[2][3]);
-		glVertex3d(h[0][3] + h[0][0] * size, h[1][3] + h[1][0] * size, h[2][3] + h[2][0] * size);
-		glEnd();
+		graphic.addLine(
+			glm::vec3{h[0][3], h[1][3], h[2][3]},
+			glm::vec3{h[0][3] + h[0][0] * size, h[1][3] + h[1][0] * size, h[2][3] + h[2][0] * size},
+			pixelSize, sdl::color::Red, viewportWidth, viewportHeight
+		);
 
 		// Draw the y-axis in blue.
-		glColor3f(0, 0, 1);
-		glBegin(GL_LINES);
-		{
-			glVertex3d(h[0][3], h[1][3], h[2][3]);
-			glVertex3d(h[0][3] + h[0][1] * size, h[1][3] + h[1][1] * size, h[2][3] + h[2][1] * size);
-		}
-		glEnd();
+		graphic.addLine(
+			glm::vec3{h[0][3], h[1][3], h[2][3]},
+			glm::vec3{h[0][3] + h[0][1] * size, h[1][3] + h[1][1] * size, h[2][3] + h[2][1] * size},
+			pixelSize, sdl::color::Blue, viewportWidth, viewportHeight
+		);
 
 		// Draw the z-axis in green.
-		glColor3f(0, 1, 0);
-		glBegin(GL_LINES);
-		{
-			glVertex3d(h[0][3], h[1][3], h[2][3]);
-			glVertex3d(h[0][3] + h[0][2] * size, h[1][3] + h[1][2] * size, h[2][3] + h[2][2] * size);
-		}
-		glEnd();
-		*/
+		graphic.addLine(
+			glm::vec3{h[0][3], h[1][3], h[2][3]},
+			glm::vec3{h[0][3] + h[0][2] * size, h[1][3] + h[1][2] * size, h[2][3] + h[2][2] * size},
+			pixelSize, sdl::color::Green, viewportWidth, viewportHeight
+		);
 	}
 
-	void RobotGraphics::drawWorkspace() const {
-		/*
-		glLineWidth(1.8f);
-		glColor3f(0, 0, 0);
-		glBegin(GL_LINES);
+	void RobotGraphics::drawWorkspace(Graphic& graphic, int viewPortWidht, int viewPortHeight) const {
 		//draw a square
-		drawLine(workspacePositions_[0], workspacePositions_[1]);
-		drawLine(workspacePositions_[1], workspacePositions_[2]);
-		drawLine(workspacePositions_[2], workspacePositions_[3]);
-		drawLine(workspacePositions_[3], workspacePositions_[0]);
-		//draw a square
-		drawLine(workspacePositions_[4], workspacePositions_[5]);
-		drawLine(workspacePositions_[5], workspacePositions_[6]);
-		drawLine(workspacePositions_[6], workspacePositions_[7]);
-		drawLine(workspacePositions_[7], workspacePositions_[4]);
-		//draw the lines connecting the both squares
-		drawLine(workspacePositions_[0], workspacePositions_[4]);
-		drawLine(workspacePositions_[1], workspacePositions_[5]);
-		drawLine(workspacePositions_[2], workspacePositions_[6]);
-		drawLine(workspacePositions_[3], workspacePositions_[7]);
-		glEnd();
-		*/
+		graphic.addLine(workspacePositions_[0], workspacePositions_[1], 3.f, sdl::color::White, viewPortWidht, viewPortHeight);
+		graphic.addLine(workspacePositions_[1], workspacePositions_[2], 3.f, sdl::color::White, viewPortWidht, viewPortHeight);
+		graphic.addLine(workspacePositions_[2], workspacePositions_[3], 3.f, sdl::color::White, viewPortWidht, viewPortHeight);
+		graphic.addLine(workspacePositions_[3], workspacePositions_[0], 3.f, sdl::color::White, viewPortWidht, viewPortHeight);
+		////draw a square
+		graphic.addLine(workspacePositions_[4], workspacePositions_[5], 3.f, sdl::color::White, viewPortWidht, viewPortHeight);
+		graphic.addLine(workspacePositions_[5], workspacePositions_[6], 3.f, sdl::color::White, viewPortWidht, viewPortHeight);
+		graphic.addLine(workspacePositions_[6], workspacePositions_[7], 3.f, sdl::color::White, viewPortWidht, viewPortHeight);
+		graphic.addLine(workspacePositions_[7], workspacePositions_[4], 3.f, sdl::color::White, viewPortWidht, viewPortHeight);
+		////draw the lines connecting the both squares
+		graphic.addLine(workspacePositions_[0], workspacePositions_[4], 3.f, sdl::color::White, viewPortWidht, viewPortHeight);
+		graphic.addLine(workspacePositions_[1], workspacePositions_[5], 3.f, sdl::color::White, viewPortWidht, viewPortHeight);
+		graphic.addLine(workspacePositions_[2], workspacePositions_[6], 3.f, sdl::color::White, viewPortWidht, viewPortHeight);
+		graphic.addLine(workspacePositions_[3], workspacePositions_[7], 3.f, sdl::color::White, viewPortWidht, viewPortHeight);
 	}
 
 	void RobotGraphics::setWorkspace(float xMin, float yMin, float zMin,
@@ -216,7 +205,7 @@ namespace robot {
 	}
 
 	void RobotGraphics::drawLine(Graphic& graphic, const glm::vec3& p1, const glm::vec3& p2) const {
-		graphic.addLine(p1, p2, 3.f, sdl::color::White);
+		//graphic.addLine(p1, p2, 3.f, sdl::color::White);
 	}
 	
 	glm::mat4 RobotGraphics::rotateZ(const glm::vec3& p1, const glm::vec3& p2) const {

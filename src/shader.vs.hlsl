@@ -23,7 +23,15 @@ struct VSOutput
 VSOutput main(VSInput input)
 {
     VSOutput output;
-    output.position = mul(projectionMatrix, float4(input.position, 1.0f));
+    if (input.tex.x < -2.5 || input.tex.y < -2.5)
+    {
+        output.position = float4(input.position, 1.0f);
+    }
+    else
+    {
+        output.position = mul(projectionMatrix, float4(input.position, 1.0f));
+    }
+
     output.tex = input.tex;
     output.color = input.color;
     output.worldPos = input.position;

@@ -113,6 +113,8 @@ namespace robot {
 	class Graphic {
 	public:
 		static constexpr glm::vec2 NoTexture{-1.0f, -1.0f};
+		static constexpr glm::vec2 NoLight{-2.0f, -2.0f};
+		static constexpr glm::vec2 NoProjection{-3.0f, -3.0f};
 
 		Graphic() {
 			loadIdentityMatrix();
@@ -440,25 +442,44 @@ namespace robot {
 			linesBuffer_.batch().clear();
 		}
 
-		void addLine(const glm::vec3& p1, const glm::vec3& p2, float width, sdl::Color color) {
-			/*
-			auto dp = 0.5f * width * glm::rotate(Pi / 2, glm::normalize(p2 - p1));
+		void addLine(const glm::vec3& p1, const glm::vec3& p2, float pixelSize, sdl::Color color, int viewportWidth, int viewportHeight) {
+			// Transform to clip space
+			glm::vec4 cp1 = projectionMatrix_ * viewMatrix_ * glm::vec4(p1, 1.0f);
+			glm::vec4 cp2 = projectionMatrix_ * viewMatrix_ * glm::vec4(p2, 1.0f);
 
-			glm::vec3 p1_3d{p1, 0.0f};
-			glm::vec3 p2_3d{p2, 0.0f};
-			glm::vec3 dp_3d{dp, 0.0f};
+			// Avoid degenerate W
+			if (cp1.w == 0.0f || cp2.w == 0.0f)
+				return;
 
-			batch_.startBatch();
-			addVertex(p1_3d - dp_3d, NoTexture, color);
-			addVertex(p2_3d - dp_3d, NoTexture, color);
-			addVertex(p2_3d + dp_3d, NoTexture, color);
-			addVertex(p1_3d + dp_3d, NoTexture, color);
+			// Convert to NDC
+			glm::vec3 ndc1 = glm::vec3(cp1) / cp1.w;
+			glm::vec3 ndc2 = glm::vec3(cp2) / cp2.w;
 
-			batch_.insertIndices({
-				0, 1, 2,
-				2, 3, 0 
-			});
-			*/
+			// 2D direction in NDC
+			glm::vec2 dir = glm::vec2(ndc2 - ndc1);
+			float len = glm::length(dir);
+			if (len < 1e-6f)
+				return; // Line parallel to camera view axis; zero screen length.
+
+			// Perpendicular in NDC
+			glm::vec2 offset = 0.5f * glm::normalize(glm::vec2{-dir.y, dir.x});
+			offset.x *= (pixelSize / viewportWidth);
+			offset.y *= (pixelSize / viewportHeight);
+
+			// Build quad in clip space
+			glm::vec3 p11{ndc1.x - offset.x, ndc1.y - offset.y, ndc1.z};
+			glm::vec3 p22{ndc2.x - offset.x, ndc2.y - offset.y, ndc2.z};
+			glm::vec3 p33{ndc2.x + offset.x, ndc2.y + offset.y, ndc2.z};
+			glm::vec3 p44{ndc1.x + offset.x, ndc1.y + offset.y, ndc1.z};
+
+			trianglesBuffer_.batch().startBatch();
+
+			addVertex(p11, NoProjection, color, {}, DrawMode::Light);
+			addVertex(p22, NoProjection, color, {}, DrawMode::Light);
+			addVertex(p33, NoProjection, color, {}, DrawMode::Light);
+			addVertex(p44, NoProjection, color, {}, DrawMode::Light);
+
+			trianglesBuffer_.batch().insertIndices({0, 1, 2, 2, 3, 0});
 		}
 
 		void addCircle(const glm::vec2& center, float radius, sdl::Color color, unsigned int iterations = 30, float startAngle = 0) {
@@ -704,8 +725,10 @@ namespace robot {
 			gpuDatas_.clear();
 		}
 
-		void uploadProjectionMatrix(SDL_GPUCommandBuffer* commandBuffer, const glm::mat4& projection) {
-			shader_.uploadProjectionMatrix(commandBuffer, projection);
+		void uploadProjectionMatrix(SDL_GPUCommandBuffer* commandBuffer, const glm::mat4& projection, const glm::mat4& viewMatrix) {
+			projectionMatrix_ = projection;
+			viewMatrix_ = viewMatrix;
+			shader_.uploadProjectionMatrix(commandBuffer, projection * viewMatrix);
 		}
 
 		void uploadLightingData(SDL_GPUCommandBuffer* commandBuffer, const LightingData& lightingData) {
@@ -736,6 +759,8 @@ namespace robot {
 		sdl::GpuGraphicsPipeline trianglesPipeline_;
 		sdl::GpuGraphicsPipeline linesPipeline_;
 		std::stack<glm::mat4> matrices_;
+		glm::mat4 projectionMatrix_;
+		glm::mat4 viewMatrix_;
 
 		TrianglesBuffer trianglesBuffer_;
 		LinesBuffer linesBuffer_;

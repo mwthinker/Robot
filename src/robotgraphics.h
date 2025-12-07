@@ -23,14 +23,14 @@ namespace robot {
 		RobotGraphics();
 
 		/// Draws the robot, baseframe and TCP-frame
-		void draw(Graphic& graphic, const std::array<float, 6>& angles);
+		void draw(Graphic& graphic, const std::array<float, 6>& angles, int viewportWidth, int viewportHeight);
 
 		/// Draws the frame defined by the homogenous transformation
 		/// from the base frame to the frame to be drawed.
-		void drawFrame(const glm::mat4& h, float size) const;
+		void drawFrame(Graphic& graphic, const glm::mat4& h, float size, int viewportWidth, int viewportHeight) const;
 
 		/// Draws a white box representing the current workspace.
-		void drawWorkspace() const;
+		void drawWorkspace(Graphic& graphic, int viewPortWidht, int viewPortHeight) const;
 
 		/// Sets the current workspace.
 		void setWorkspace(float xMin, float yMin, float zMin,
