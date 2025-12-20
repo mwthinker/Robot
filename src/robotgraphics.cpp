@@ -14,7 +14,7 @@ namespace robot {
 		/// Converts the joint angles for the C-code for the robot to angles
 		/// suited for the DH-representation (and the real robot).
 		std::array<float, 6> convertAngles(const std::array<float, 6>& angles) {
-			// Anles[2] is defined relative to the horizontal plane
+			// Angles[2] is defined relative to the horizontal plane
 			return {
 				angles[0],
 				angles[1] - Pi / 2,
@@ -64,10 +64,9 @@ namespace robot {
 		jointPositions_[4] = h1 * h2 * h3 * h4 * zero;
 		jointPositions_[5] = h1 * h2 * h3 * h4 * h5 * zero;
 		glm::mat4 h = h1 * h2 * h3 * h4 * h5 * h6;
-		jointPositions_[6] = h * zero;			//pos[6] = TCP!
+		jointPositions_[6] = h * zero; //pos[6] = TCP!
 
 		// Draw the links of the robot.
-		//glLineWidth(3.0f);
 		auto color = sdl::Color::createU32(230, 100, 40);
 
 		graphic.pushMatrix(); // Bas-klumpen som roboten sitter på
@@ -121,25 +120,25 @@ namespace robot {
 	void RobotGraphics::drawFrame(Graphic& graphic, const glm::mat4& h, float size, int viewportWidth, int viewportHeight) const {
 		float pixelSize = 1.8f;
 
-		// Draw the x-axis in red.
+		glm::vec3 origin = h[3];
+		glm::vec3 xAxis = h[0];
+		
 		graphic.addLine(
-			glm::vec3{h[0][3], h[1][3], h[2][3]},
-			glm::vec3{h[0][3] + h[0][0] * size, h[1][3] + h[1][0] * size, h[2][3] + h[2][0] * size},
+			origin,
+			origin + xAxis * size,
 			pixelSize, sdl::color::Red, viewportWidth, viewportHeight
 		);
-
-		// Draw the y-axis in blue.
+		glm::vec3 yAxis = h[1];
 		graphic.addLine(
-			glm::vec3{h[0][3], h[1][3], h[2][3]},
-			glm::vec3{h[0][3] + h[0][1] * size, h[1][3] + h[1][1] * size, h[2][3] + h[2][1] * size},
-			pixelSize, sdl::color::Blue, viewportWidth, viewportHeight
-		);
-
-		// Draw the z-axis in green.
-		graphic.addLine(
-			glm::vec3{h[0][3], h[1][3], h[2][3]},
-			glm::vec3{h[0][3] + h[0][2] * size, h[1][3] + h[1][2] * size, h[2][3] + h[2][2] * size},
+			origin,
+			origin + yAxis * size,
 			pixelSize, sdl::color::Green, viewportWidth, viewportHeight
+		);
+		glm::vec3 zAxis = h[2];
+		graphic.addLine(
+			origin,
+			origin + zAxis * size,
+			pixelSize, sdl::color::Blue, viewportWidth, viewportHeight
 		);
 	}
 
@@ -204,10 +203,6 @@ namespace robot {
 		dh_.d[5] = 0.065f;
 	}
 
-	void RobotGraphics::drawLine(Graphic& graphic, const glm::vec3& p1, const glm::vec3& p2) const {
-		//graphic.addLine(p1, p2, 3.f, sdl::color::White);
-	}
-	
 	glm::mat4 RobotGraphics::rotateZ(const glm::vec3& p1, const glm::vec3& p2) const {
 		glm::vec3 ez = glm::normalize(p2 - p1);
 

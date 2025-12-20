@@ -58,8 +58,6 @@ namespace robot {
 		/// Loads the default values for the DH-representation (in meter).
 		void initDefaultDH();
 
-		void drawLine(Graphic& graphic, const glm::vec3& p1, const glm::vec3& p2) const;
-
 		/// Draws the link for the robot.
 		void drawCylinderLink(Graphic& graphic, const glm::vec3& pos1, const glm::vec3& pos2, float radie1, float radie2, sdl::Color color) const;
 
