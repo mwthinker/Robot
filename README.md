@@ -3,6 +3,8 @@ A 3D visualization application of an ABB IRB-140 industrial robot with 6 degrees
 
 Based on the master thesis [Haptic interface for a Contact force Controlled Robot Arm](https://www.lu.se/lup/publication/8847542), 2009, Lund University.
 
+![Screenshot](data/screenshot.png)
+
 ## Features
 - 6-DOF robot arm visualization using Denavit-Hartenberg (DH) parameters
 - Real-time forward kinematics computation
