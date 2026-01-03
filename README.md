@@ -66,11 +66,66 @@ The application uses a modern GPU-accelerated rendering pipeline with:
 - Multi-pass rendering (GPU copy + MSAA render + blit to swapchain)
 - Embedded compiled shaders (DXIL and SPIR-V)
 
-## Dependencies
-Managed via vcpkg
+```mermaid
+flowchart TD
+    Start([Application Start]) --> Init[Initialize SDL3 & GPU Device]
+    Init --> PreLoop[preLoop - Setup Phase]
 
+    subgraph Setup["Setup Phase (Once)"]
+        PreLoop --> LoadShaders[Load HLSL Shaders<br/>Vertex & Pixel]
+        LoadShaders --> CreatePipeline[Create Graphics Pipelines<br/>Triangles]
+        CreatePipeline --> CreateTextures[Create Textures<br/>Depth, Color, Resolve]
+        CreateTextures --> CreateSamplers[Create Samplers]
+    end
+
+    CreateSamplers --> LoopStart{Main Loop}
+
+    subgraph Render["Rendering Phase"]
+        LoopStart --> PollEvents[Poll Events<br/>processEvent]
+        PollEvents --> ImGuiNewFrame[ImGui New Frame]
+        ImGuiNewFrame --> RenderImGui[renderImGui<br/>Build UI Controls]
+        RenderImGui --> ImGuiRender[ImGui::Render]
+        ImGuiRender --> AcquireGPU[Acquire GPU Command Buffer<br/>& Swapchain Texture]
+
+        subgraph AppRender["renderFrame - 3D Graphics"]
+            AcquireGPU --> UpdateCamera[Update Camera<br/>Spherical Coordinates]
+            UpdateCamera --> ClearBatch[Clear Geometry Batches]
+            ClearBatch --> BuildGeometry[Build Geometry]
+
+            subgraph Geometry["Geometry Building"]
+                BuildGeometry --> AddRobot[Add Robot<br/>DH Kinematics]
+                AddRobot --> AddFloor[Add Floor Grid]
+                AddFloor --> AddLights[Add Light Bulbs]
+                AddLights --> AddWorkspace[Add Workspace Bounds]
+            end
+
+            AddWorkspace --> GPUCopy[GPU Copy Pass<br/>Transfer Vertex/Index Data]
+            GPUCopy --> UploadUniforms[Upload Uniforms<br/>Projection, View, Lighting]
+            UploadUniforms --> BeginRender[Begin Render Pass<br/>Depth + Color Targets]
+            BeginRender --> BindDraw[Bind Pipelines & Draw<br/>Batched Geometry]
+            BindDraw --> EndRender[End Render Pass]
+            EndRender --> Resolve{MSAA?}
+            Resolve -->|Yes| ResolvePass[Resolve MSAA]
+            Resolve -->|No| Blit
+            ResolvePass --> Blit[Blit to Swapchain]
+        end
+
+        Blit --> ImGuiDraw[ImGui Draw Pass<br/>UI on Top]
+        ImGuiDraw --> Submit[Submit GPU Commands]
+    end
+
+    Submit --> Sleep[Optional Sleep<br/>Frame Rate Limit]
+    Sleep --> LoopStart
+
+    style Setup stroke:#4682b4,stroke-width:3px
+    style Render stroke:#daa520,stroke-width:3px
+    style AppRender stroke:#228b22,stroke-width:3px
+    style Geometry stroke:#696969,stroke-width:2px
+```
+
+## Dependencies
 Custom [vcpkg registry](https://github.com/mwthinker/mw-vcpkg-registry.git):
-- **cppsdl3**: Custom SDL3 and ImGui C++ wrapper library
+- **cppsdl3**: SDL3 and ImGui C++ wrapper library
 
 ## Open source
 The code is licensed under the MIT License (see LICENSE.txt).
