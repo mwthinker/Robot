@@ -29,6 +29,7 @@ namespace robot {
 
 	// Can't be stored.
 	struct GpuData {
+		bool cycle = false;
 		std::span<const Vertex> vertices;
 		std::span<const uint32_t> indices;
 		SDL_GPUBuffer* indexBuffer;
@@ -51,43 +52,11 @@ namespace robot {
 			auto vertices_ = batch_.vertices();
 			SDL_GPUBuffer* indexBuffer = indexBuffer_.get(gpuDevice, SDL_GPU_BUFFERUSAGE_INDEX, indices_);
 			SDL_GPUBuffer* vertexBuffer = vertexBuffer_.get(gpuDevice, SDL_GPU_BUFFERUSAGE_VERTEX, vertices_);
-			SDL_GPUTransferBuffer* vertexTransferBuffer = vertexTransferBuffer_.get(gpuDevice, vertices_);
-			SDL_GPUTransferBuffer* indexTransferBuffer = indexTransferBuffer_.get(gpuDevice, indices_);
+			SDL_GPUTransferBuffer* vertexTransferBuffer = vertexTransferBuffer_.get(gpuDevice, vertices_, true);
+			SDL_GPUTransferBuffer* indexTransferBuffer = indexTransferBuffer_.get(gpuDevice, indices_, true);
 			
 			return GpuData{
-				.vertices = vertices_,
-				.indices = indices_,
-				.indexBuffer = indexBuffer,
-				.vertexBuffer = vertexBuffer,
-				.vertexTransferBuffer = vertexTransferBuffer,
-				.indexTransferBuffer = indexTransferBuffer,
-				.pipeline = pipeline
-			};
-		}
-
-		sdl::Batch<Vertex>& batch() {
-			return batch_;
-		}
-
-	private:
-		sdl::TransferBuffer vertexTransferBuffer_;
-		sdl::TransferBuffer indexTransferBuffer_;
-		sdl::Buffer vertexBuffer_;
-		sdl::Buffer indexBuffer_;
-		sdl::Batch<Vertex> batch_;
-	};
-
-	class LinesBuffer {
-	public:
-		GpuData prepareGpuData(SDL_GPUDevice* gpuDevice, SDL_GPUGraphicsPipeline* pipeline) {
-			auto indices_ = batch().indices();
-			auto vertices_ = batch().vertices();
-			SDL_GPUBuffer* indexBuffer = indexBuffer_.get(gpuDevice, SDL_GPU_BUFFERUSAGE_INDEX, indices_);
-			SDL_GPUBuffer* vertexBuffer = vertexBuffer_.get(gpuDevice, SDL_GPU_BUFFERUSAGE_VERTEX, vertices_);
-			SDL_GPUTransferBuffer* vertexTransferBuffer = vertexTransferBuffer_.get(gpuDevice, vertices_);
-			SDL_GPUTransferBuffer* indexTransferBuffer = indexTransferBuffer_.get(gpuDevice, indices_);
-
-			return GpuData{
+				.cycle = true,
 				.vertices = vertices_,
 				.indices = indices_,
 				.indexBuffer = indexBuffer,
@@ -439,7 +408,6 @@ namespace robot {
 
 		void clear() {
 			trianglesBuffer_.batch().clear();
-			linesBuffer_.batch().clear();
 		}
 
 		void addLine(const glm::vec3& p1, const glm::vec3& p2, float pixelSize, sdl::Color color, int viewportWidth, int viewportHeight) {
@@ -528,24 +496,6 @@ namespace robot {
 					baseIndex, baseIndex + 1, baseIndex + 3,
 					baseIndex + 3, baseIndex + 2, baseIndex
 				});
-			}
-		}
-
-		void addPixelLine(std::initializer_list<glm::vec2> points, sdl::Color color) {
-			addPixelLine(points.begin(), points.end(), color);
-		}
-
-		void addPixelLine(std::input_iterator auto begin, std::input_iterator auto end, sdl::Color color) {
-			linesBuffer_.batch().startBatch();
-
-			for (auto it = begin; it != end; ++it) {
-				addLinesVertex(glm::vec3{*it, 0}, NoTexture, color);
-			}
-
-			const auto size = std::distance(begin, end);
-			for (int i = 1; i < size; ++i) {
-				linesBuffer_.batch().pushBackIndex(i - 1);
-				linesBuffer_.batch().pushBackIndex(i);
 			}
 		}
 
@@ -641,54 +591,57 @@ namespace robot {
 		}
 
 		void bindAndDraw(SDL_GPUDevice* gpuDevice, SDL_GPURenderPass* renderPass) {
-			auto& data = gpuDatas_.emplace_back(trianglesBuffer_.prepareGpuData(gpuDevice, trianglesPipeline_.get()));
+			for (const auto& data : gpuDatas_) {
+				SDL_GPUTextureSamplerBinding samplerBinding{
+					.texture = texture_.get(),
+					.sampler = sampler_.get()
+				};
 
-			SDL_GPUTextureSamplerBinding samplerBinding{
-				.texture = texture_.get(),
-				.sampler = sampler_.get()
-			};
+				SDL_BindGPUGraphicsPipeline(renderPass, trianglesPipeline_.get());
 
-			SDL_BindGPUGraphicsPipeline(renderPass, trianglesPipeline_.get());
-			
-			SDL_GPUBufferBinding vertexBinding{
-				.buffer = data.vertexBuffer,
-				.offset = 0
-			};
-			SDL_BindGPUVertexBuffers(
-				renderPass,
-				0,
-				&vertexBinding,
-				1
-			);
+				SDL_GPUBufferBinding vertexBinding{
+					.buffer = data.vertexBuffer,
+					.offset = 0
+				};
+				SDL_BindGPUVertexBuffers(
+					renderPass,
+					0,
+					&vertexBinding,
+					1
+				);
 
-			SDL_GPUBufferBinding indexBinding{
-				.buffer = data.indexBuffer,
-				.offset = 0
-			};
-			SDL_BindGPUIndexBuffer(
-				renderPass,
-				&indexBinding,
-				SDL_GPU_INDEXELEMENTSIZE_32BIT
-			);
+				SDL_GPUBufferBinding indexBinding{
+					.buffer = data.indexBuffer,
+					.offset = 0
+				};
+				SDL_BindGPUIndexBuffer(
+					renderPass,
+					&indexBinding,
+					SDL_GPU_INDEXELEMENTSIZE_32BIT
+				);
 
-			SDL_BindGPUFragmentSamplers(
-				renderPass,
-				0,
-				&samplerBinding,
-				1
-			);
-			
-			SDL_DrawGPUIndexedPrimitives(
-				renderPass,
-				static_cast<Uint32>(data.indices.size()),
-				1,
-				0,
-				0,
-				0
-			);
+				SDL_BindGPUFragmentSamplers(
+					renderPass,
+					0,
+					&samplerBinding,
+					1
+				);
+
+				SDL_DrawGPUIndexedPrimitives(
+					renderPass,
+					static_cast<Uint32>(data.indices.size()),
+					1,
+					0,
+					0,
+					0
+				);
+			}
+			gpuDatas_.clear();
 		}
 
 		void gpuCopyPass(SDL_GPUDevice* gpuDevice, SDL_GPUCommandBuffer* commandBuffer) {
+			gpuDatas_.emplace_back(trianglesBuffer_.prepareGpuData(gpuDevice, trianglesPipeline_.get()));
+
 			SDL_GPUCopyPass* copyPass = SDL_BeginGPUCopyPass(commandBuffer);
 			for (const auto& gpuData : gpuDatas_) {
 				SDL_GPUTransferBufferLocation vertexLocation{
@@ -704,7 +657,7 @@ namespace robot {
 					copyPass,
 					&vertexLocation,
 					&vertexRegion,
-					false
+					gpuData.cycle
 				);
 				SDL_GPUTransferBufferLocation indexLocation{
 					.transfer_buffer = gpuData.indexTransferBuffer,
@@ -718,11 +671,10 @@ namespace robot {
 				SDL_UploadToGPUBuffer(copyPass,
 					&indexLocation,
 					&indexRegion,
-					false
+					gpuData.cycle
 				);
 			}
 			SDL_EndGPUCopyPass(copyPass);
-			gpuDatas_.clear();
 		}
 
 		void uploadProjectionMatrix(SDL_GPUCommandBuffer* commandBuffer, const glm::mat4& projection, const glm::mat4& viewMatrix) {
@@ -747,14 +699,6 @@ namespace robot {
 			);
 		}
 
-		void addLinesVertex(const glm::vec3& position, const glm::vec2& tex, sdl::Color color) {
-			linesBuffer_.batch().pushBack({
-				getMatrix() * glm::vec4{position, 1},
-				tex,
-				color
-			});
-		}
-
 		Shader shader_;
 		sdl::GpuGraphicsPipeline trianglesPipeline_;
 		sdl::GpuGraphicsPipeline linesPipeline_;
@@ -763,7 +707,6 @@ namespace robot {
 		glm::mat4 viewMatrix_;
 
 		TrianglesBuffer trianglesBuffer_;
-		LinesBuffer linesBuffer_;
 		std::vector<GpuData> gpuDatas_;
 
 		sdl::GpuSampler sampler_;

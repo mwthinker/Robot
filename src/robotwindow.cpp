@@ -184,15 +184,6 @@ namespace robot {
 	}
 
 	void RobotWindow::renderFrame(const sdl::DeltaTime& deltaTime, SDL_GPUTexture* swapchainTexture, SDL_GPUCommandBuffer* commandBuffer) {
-		SDL_GPUDepthStencilTargetInfo depthTargetInfo{
-			.texture = depthTexture_.get(),
-			.clear_depth = 1.0f,
-			.load_op = SDL_GPU_LOADOP_CLEAR,
-			.store_op = SDL_GPU_STOREOP_DONT_CARE,
-			.stencil_load_op = SDL_GPU_LOADOP_DONT_CARE,
-			.stencil_store_op = SDL_GPU_STOREOP_DONT_CARE,
-			.cycle = false
-		};
 		camera_.update(deltaTime, view_);
 
 		graphic_.clear();
@@ -224,6 +215,15 @@ namespace robot {
 		graphic_.gpuCopyPass(gpuDevice_, commandBuffer);
 		reshape(commandBuffer, w, h);
 
+		SDL_GPUDepthStencilTargetInfo depthTargetInfo{
+			.texture = depthTexture_.get(),
+			.clear_depth = 1.0f,
+			.load_op = SDL_GPU_LOADOP_CLEAR,
+			.store_op = SDL_GPU_STOREOP_DONT_CARE,
+			.stencil_load_op = SDL_GPU_LOADOP_DONT_CARE,
+			.stencil_store_op = SDL_GPU_STOREOP_DONT_CARE,
+			.cycle = false
+		};
 		SDL_GPUColorTargetInfo colorTargetInfo{
 			.texture = renderTexture_.get(),
 			.clear_color = clearColor_,
