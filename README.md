@@ -1,0 +1,76 @@
+# Robot [![CI build](https://github.com/mwthinker/Robot/actions/workflows/ci.yml/badge.svg)](https://github.com/mwthinker/Robot/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+A 3D visualization application of an ABB IRB-140 industrial robot with 6 degrees of freedom. The application uses SDL3 with GPU rendering (via SDL_GPU), HLSL shaders, and implements a custom graphics rendering pipeline with lighting and camera controls.
+
+Based on the master thesis [Haptic interface for a Contact force Controlled Robot Arm](https://www.lu.se/lup/publication/8847542), 2009, Lund University.
+
+## Features
+- 6-DOF robot arm visualization using Denavit-Hartenberg (DH) parameters
+- Real-time forward kinematics computation
+- Interactive camera controls with spherical coordinates
+- Custom batched geometry rendering system
+- Multi-light support with configurable lighting
+- MSAA and depth testing
+- ImGui integration for UI controls
+
+## Developer environment
+
+### Prerequisites
+- CMake 4.2+
+- vcpkg (environment variable `VCPKG_ROOT` must be set)
+- C++23 compiler (MSVC on Windows, GCC/Clang on Unix)
+
+### Building
+
+Assuming Windows host, otherwise change to "unix"
+```bash
+git clone https://github.com/mwthinker/Robot.git
+cd Robot
+cmake --preset=windows -B build
+cmake --build build
+```
+
+For different build configurations:
+```bash
+# Debug build
+cmake --preset=windows -B build_debug -DCMAKE_BUILD_TYPE=Debug
+cmake --build build_debug
+
+# Release build
+cmake --preset=windows -B build_release -DCMAKE_BUILD_TYPE=Release
+cmake --build build_release
+```
+
+### Running Tests
+Tests use Google Test framework:
+```bash
+# Run all tests
+ctest --test-dir build/Robot_Test
+
+# Run with verbose output on failure
+ctest --rerun-failed --output-on-failure --test-dir build/Robot_Test
+```
+
+## Architecture
+
+### Core Components
+- **RobotWindow**: Main application window managing the render loop and ImGui integration
+- **RobotGraphics**: Robot kinematics implementation using DH parameters
+- **Graphic**: Core rendering abstraction layer with batched geometry system
+- **Shader**: HLSL vertex and pixel shaders with lighting calculations
+- **Camera**: Spherical coordinate camera system
+
+### Rendering Pipeline
+The application uses a modern GPU-accelerated rendering pipeline with:
+- Batched geometry submission for efficiency
+- Matrix stack for transformations
+- Multi-pass rendering (GPU copy + MSAA render + blit to swapchain)
+- Embedded compiled shaders (DXIL and SPIR-V)
+
+## Dependencies
+Managed via vcpkg
+
+Custom [vcpkg registry](https://github.com/mwthinker/mw-vcpkg-registry.git):
+- **cppsdl3**: Custom SDL3 and ImGui C++ wrapper library
+
+## Open source
+The code is licensed under the MIT License (see LICENSE.txt).
