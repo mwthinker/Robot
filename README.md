@@ -1,7 +1,7 @@
 # Robot [![CI build](https://github.com/mwthinker/Robot/actions/workflows/ci.yml/badge.svg)](https://github.com/mwthinker/Robot/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 A 3D visualization application of an ABB IRB-140 industrial robot with 6 degrees of freedom. The application uses SDL3 with GPU rendering (via SDL_GPU), HLSL shaders, and implements a custom graphics rendering pipeline with lighting and camera controls.
 
-Based on the master thesis [Haptic interface for a Contact force Controlled Robot Arm](https://www.lu.se/lup/publication/8847542), 2009, Lund University.
+Based on the master thesis [Haptic Interface for a Contact Force Controlled Robot](https://www.lu.se/lup/publication/8847542), 2009, Lund University.
 
 ![Screenshot](data/screenshot.png)
 
